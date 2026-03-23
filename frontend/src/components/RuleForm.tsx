@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Loader2, FolderOpen, ArrowRight, ArrowLeft, Save, Lock } from 'lucide-react'
+import { Loader2, FolderOpen, ArrowRight, ArrowLeft, Save, Lock, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { browseFile } from '../api/client'
 import { ProcessPicker } from './ProcessPicker'
 import { DayPicker } from './DayPicker'
-import { schedulesToBlocks, blocksToSchedules } from '../lib/schedule-convert'
+import { schedulesToBlocks, blocksToSchedules, crossesMidnight } from '../lib/schedule-convert'
 import type { BlockWindow } from '../lib/schedule-convert'
 import type { Rule, RulePayload, MatchMode } from '../types/api'
 
@@ -16,15 +16,15 @@ export interface RuleFormData {
   enabled: boolean
   // Mode
   mode: 'time_window' | 'daily_limit' | 'both'
-  // Time window
-  blockWindow: BlockWindow
+  // Time windows — all block windows from all schedules
+  blockWindows: BlockWindow[]
   // Daily limit
   daily_limit_hours: number
   daily_limit_mins: number
 }
 
 interface RuleFormProps {
-  initialData?: Partial<RuleFormData>
+  initialRule?: Rule
   onSubmit: (payload: RulePayload) => Promise<void>
   onCancel: () => void
   submitLabel?: string
@@ -32,6 +32,13 @@ interface RuleFormProps {
 }
 
 const DEFAULT_DAYS = [1, 2, 3, 4, 5] // Mon–Fri
+
+const DEFAULT_BLOCK_WINDOW: BlockWindow = {
+  block_start: '22:00',
+  block_end: '08:00',
+  days: DEFAULT_DAYS,
+  warn_before_minutes: 0,
+}
 
 function defaultFormData(rule?: Rule): RuleFormData {
   if (!rule) {
@@ -42,24 +49,15 @@ function defaultFormData(rule?: Rule): RuleFormData {
       match_mode: 'name',
       enabled: true,
       mode: 'time_window',
-      blockWindow: {
-        block_start: '22:00',
-        block_end: '08:00',
-        days: DEFAULT_DAYS,
-        warn_before_minutes: 0,
-      },
+      blockWindows: [{ ...DEFAULT_BLOCK_WINDOW }],
       daily_limit_hours: 2,
       daily_limit_mins: 0,
     }
   }
 
+  // Convert ALL schedules → block windows (not just [0])
   const blocks = schedulesToBlocks(rule.schedules)
-  const block = blocks[0] ?? {
-    block_start: '22:00',
-    block_end: '08:00',
-    days: DEFAULT_DAYS,
-    warn_before_minutes: 0,
-  }
+  const blockWindows = blocks.length > 0 ? blocks : [{ ...DEFAULT_BLOCK_WINDOW }]
 
   const hasSchedules = rule.schedules.length > 0
   const hasLimit = !!rule.daily_limit_minutes && rule.daily_limit_minutes > 0
@@ -73,11 +71,11 @@ function defaultFormData(rule?: Rule): RuleFormData {
   return {
     name: rule.name,
     exe_name: rule.exe_name,
-    exe_path: rule.exe_path ?? '',
+    exe_path: rule.exe_path ?? '',   // null guard for nullable exe_path
     match_mode: rule.match_mode,
     enabled: rule.enabled,
     mode,
-    blockWindow: block,
+    blockWindows,
     daily_limit_hours: Math.floor(totalMins / 60),
     daily_limit_mins: totalMins % 60,
   }
@@ -85,7 +83,7 @@ function defaultFormData(rule?: Rule): RuleFormData {
 
 export function buildPayload(form: RuleFormData): RulePayload {
   const schedules =
-    form.mode === 'daily_limit' ? [] : blocksToSchedules([form.blockWindow])
+    form.mode === 'daily_limit' ? [] : blocksToSchedules(form.blockWindows)
 
   const daily_limit_minutes =
     form.mode === 'time_window'
@@ -103,20 +101,35 @@ export function buildPayload(form: RuleFormData): RulePayload {
   }
 }
 
-interface RuleFormProps {
-  initialRule?: Rule
-  onSubmit: (payload: RulePayload) => Promise<void>
-  onCancel: () => void
-  submitLabel?: string
-  isSubmitting?: boolean
-}
-
 export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save Rule', isSubmitting }: RuleFormProps) {
   const [step, setStep] = useState(1)
   const [form, setForm] = useState<RuleFormData>(() => defaultFormData(initialRule))
   const [isBrowsing, setIsBrowsing] = useState(false)
 
   const update = (patch: Partial<RuleFormData>) => setForm(prev => ({ ...prev, ...patch }))
+
+  const updateBlockWindow = (index: number, patch: Partial<BlockWindow>) => {
+    setForm(prev => {
+      const updated = prev.blockWindows.map((bw, i) =>
+        i === index ? { ...bw, ...patch } : bw
+      )
+      return { ...prev, blockWindows: updated }
+    })
+  }
+
+  const addBlockWindow = () => {
+    setForm(prev => ({
+      ...prev,
+      blockWindows: [...prev.blockWindows, { ...DEFAULT_BLOCK_WINDOW }],
+    }))
+  }
+
+  const removeBlockWindow = (index: number) => {
+    setForm(prev => ({
+      ...prev,
+      blockWindows: prev.blockWindows.filter((_, i) => i !== index),
+    }))
+  }
 
   const handleBrowse = async () => {
     setIsBrowsing(true)
@@ -141,13 +154,6 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
     const payload = buildPayload(form)
     await onSubmit(payload)
   }
-
-  const crossesMidnight =
-    form.mode !== 'daily_limit' && (() => {
-      const [sh, sm] = form.blockWindow.block_start.split(':').map(Number)
-      const [eh, em] = form.blockWindow.block_end.split(':').map(Number)
-      return sh * 60 + sm > eh * 60 + em
-    })()
 
   return (
     <div className="flex flex-col gap-6">
@@ -295,55 +301,88 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
             </div>
           </div>
 
-          {/* Time Window config */}
+          {/* Time Window config — list of block windows */}
           {(form.mode === 'time_window' || form.mode === 'both') && (
-            <div className="flex flex-col gap-3 p-4 rounded-lg bg-zinc-900 border border-zinc-800">
-              <h3 className="text-sm font-semibold text-zinc-300">Time Window (Blocked Hours)</h3>
-              <div className="flex items-center gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-zinc-500">Block from</label>
-                  <input
-                    type="time"
-                    value={form.blockWindow.block_start}
-                    onChange={e => update({ blockWindow: { ...form.blockWindow, block_start: e.target.value } })}
-                    className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 font-mono focus:outline-none focus:border-cyan-500/60"
-                  />
-                </div>
-                <span className="text-zinc-500 mt-4">to</span>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-zinc-500">Block until</label>
-                  <input
-                    type="time"
-                    value={form.blockWindow.block_end}
-                    onChange={e => update({ blockWindow: { ...form.blockWindow, block_end: e.target.value } })}
-                    className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 font-mono focus:outline-none focus:border-cyan-500/60"
-                  />
-                </div>
-                {crossesMidnight && (
-                  <span className="text-xs text-amber-400 mt-4">⚠️ Crosses midnight</span>
-                )}
-              </div>
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold text-zinc-300">Time Windows (Blocked Hours)</h3>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-zinc-500">Active on days</label>
-                <DayPicker
-                  value={form.blockWindow.days}
-                  onChange={days => update({ blockWindow: { ...form.blockWindow, days } })}
-                />
-              </div>
+              {form.blockWindows.map((bw, index) => {
+                const midnight = crossesMidnight(bw)
+                return (
+                  <div key={index} className="flex flex-col gap-3 p-4 rounded-lg bg-zinc-900 border border-zinc-800">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">
+                        Window {index + 1}
+                      </span>
+                      {form.blockWindows.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeBlockWindow(index)}
+                          className="text-zinc-500 hover:text-red-400 transition-colors"
+                          title="Remove this window"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
 
-              <div className="flex items-center gap-3">
-                <label className="text-xs text-zinc-500 shrink-0">Warn before lock (min)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="60"
-                  value={form.blockWindow.warn_before_minutes}
-                  onChange={e => update({ blockWindow: { ...form.blockWindow, warn_before_minutes: Number(e.target.value) } })}
-                  className="w-20 px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 font-mono focus:outline-none focus:border-cyan-500/60"
-                />
-                <span className="text-xs text-zinc-600">(0 = no warning)</span>
-              </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-zinc-500">Block from</label>
+                        <input
+                          type="time"
+                          value={bw.block_start}
+                          onChange={e => updateBlockWindow(index, { block_start: e.target.value })}
+                          className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 font-mono focus:outline-none focus:border-cyan-500/60"
+                        />
+                      </div>
+                      <span className="text-zinc-500 mt-4">to</span>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-zinc-500">Block until</label>
+                        <input
+                          type="time"
+                          value={bw.block_end}
+                          onChange={e => updateBlockWindow(index, { block_end: e.target.value })}
+                          className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 font-mono focus:outline-none focus:border-cyan-500/60"
+                        />
+                      </div>
+                      {midnight && (
+                        <span className="text-xs text-amber-400 mt-4">⚠️ Crosses midnight</span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-zinc-500">Active on days</label>
+                      <DayPicker
+                        value={bw.days}
+                        onChange={days => updateBlockWindow(index, { days })}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <label className="text-xs text-zinc-500 shrink-0">Warn before lock (min)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="60"
+                        value={bw.warn_before_minutes}
+                        onChange={e => updateBlockWindow(index, { warn_before_minutes: Number(e.target.value) })}
+                        className="w-20 px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 font-mono focus:outline-none focus:border-cyan-500/60"
+                      />
+                      <span className="text-xs text-zinc-600">(0 = no warning)</span>
+                    </div>
+                  </div>
+                )
+              })}
+
+              <button
+                type="button"
+                onClick={addBlockWindow}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-cyan-400 border border-cyan-500/30 rounded hover:border-cyan-500/60 hover:bg-cyan-500/5 transition-colors self-start"
+              >
+                <Plus className="w-4 h-4" />
+                Add another time window
+              </button>
             </div>
           )}
 

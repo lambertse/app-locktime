@@ -238,13 +238,19 @@ export function Stats() {
                   <div key={attempt.id} className="py-2.5 flex items-center gap-3">
                     <AlertOctagon className="w-4 h-4 text-red-400 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm text-zinc-200 font-medium">{attempt.rule_name}</div>
-                      <div className="text-xs text-zinc-500 font-mono truncate">{attempt.exe_path}</div>
+                      <div className="text-sm text-zinc-200 font-medium">
+                        {attempt.rule_name ?? <span className="text-zinc-500 italic">Unknown rule</span>}
+                      </div>
+                      <div className="text-xs text-zinc-500 font-mono truncate">
+                        {attempt.exe_path ?? <span className="text-zinc-600 italic">—</span>}
+                      </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="text-xs text-red-400">{reasonLabels[attempt.reason] ?? attempt.reason}</div>
+                      <div className="text-xs text-red-400">
+                        {attempt.reason ? (reasonLabels[attempt.reason] ?? attempt.reason) : '—'}
+                      </div>
                       <div className="text-xs text-zinc-600 font-mono">
-                        {format(parseISO(attempt.ts), 'HH:mm:ss')}
+                        {format(parseISO(attempt.attempted_at), 'HH:mm:ss')}
                       </div>
                     </div>
                   </div>

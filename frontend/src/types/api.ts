@@ -14,7 +14,7 @@ export interface Rule {
   id: string            // UUID
   name: string
   exe_name: string
-  exe_path: string
+  exe_path: string | null
   match_mode: MatchMode
   daily_limit_minutes: number | null
   enabled: boolean
@@ -110,12 +110,12 @@ export interface UsageWeekResponse {
 
 // Blocked Attempts
 export interface BlockAttempt {
-  id: number
-  ts: string
-  rule_id: string
-  rule_name: string
-  exe_path: string
-  reason: 'outside_schedule' | 'daily_limit_reached' | 'both'
+  id: string
+  rule_id: string | null
+  rule_name: string | null
+  exe_path: string | null
+  reason: string | null
+  attempted_at: string
 }
 
 export interface AttemptsResponse {
