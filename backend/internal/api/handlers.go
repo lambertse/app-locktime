@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"strconv"
 	"strings"
@@ -20,8 +21,9 @@ const serviceVersion = "1.0.0"
 
 // Server holds shared state accessible by all handlers.
 type Server struct {
-	DB        *sql.DB
-	StartedAt time.Time
+	DB          *sql.DB
+	StartedAt   time.Time
+	FrontendFS  fs.FS // optional embedded frontend; if set, SPA catch-all is registered
 }
 
 // SetupRouter creates and configures the gin router.
@@ -82,6 +84,10 @@ func SetupRouter(s *Server) *gin.Engine {
 		v1.POST("/system/browse", s.handleBrowse)
 	}
 
+	// SPA catch-all: serve index.html for non-API paths so React Router works
+	// on direct navigation / page refresh (e.g. /rules/:id/edit).
+	RegisterSPACatchAll(r, s.FrontendFS)
+
 	return r
 }
 
@@ -115,6 +121,13 @@ func (s *Server) handleGetStatus(c *gin.Context) {
 		MinutesElapsed   *int     `json:"minutes_elapsed"`
 	}
 
+	// Fetch all open sessions once (avoids N+1 queries).
+	openSessions, _ := db.GetOpenSessions(s.DB)
+	openSessionByRuleID := make(map[string]db.UsageSession, len(openSessions))
+	for _, sess := range openSessions {
+		openSessionByRuleID[sess.RuleID] = sess
+	}
+
 	var statuses []ruleStatus
 	for _, rule := range rules {
 		todayMinutes, _ := db.GetDailyMinutes(s.DB, rule.ID, now.Format("2006-01-02"), now)
@@ -134,27 +147,29 @@ func (s *Server) handleGetStatus(c *gin.Context) {
 			nextUnlockStr = &t
 		}
 
-		// Check open sessions
-		openSessions, _ := db.GetOpenSessions(s.DB)
+		// Look up open session from pre-fetched map (O(1), no extra query).
 		var pid *int
 		var sessionStarted *string
 		var minutesElapsed *int
+		var blockedSince *string
 		currentlyRunning := false
 
-		for _, sess := range openSessions {
-			if sess.RuleID == rule.ID {
-				currentlyRunning = true
-				if sess.PID != nil {
-					pid = sess.PID
-				}
-				sessionStarted = &sess.StartedAt
-				t, parseErr := time.Parse(time.RFC3339, sess.StartedAt)
-				if parseErr == nil {
-					elapsed := int(now.Sub(t).Minutes())
-					minutesElapsed = &elapsed
-				}
-				break
+		if sess, ok := openSessionByRuleID[rule.ID]; ok {
+			currentlyRunning = true
+			if sess.PID != nil {
+				pid = sess.PID
 			}
+			sessionStarted = &sess.StartedAt
+			t, parseErr := time.Parse(time.RFC3339, sess.StartedAt)
+			if parseErr == nil {
+				elapsed := int(now.Sub(t).Minutes())
+				minutesElapsed = &elapsed
+			}
+		}
+
+		// Populate blocked_since from the session start time when the rule is locked.
+		if rs.Status == "locked" && sessionStarted != nil {
+			blockedSince = sessionStarted
 		}
 
 		statuses = append(statuses, ruleStatus{
@@ -164,6 +179,7 @@ func (s *Server) handleGetStatus(c *gin.Context) {
 			Enabled:          rule.Enabled,
 			Status:           rs.Status,
 			Reason:           rs.Reason,
+			BlockedSince:     blockedSince,
 			NextLockAt:       nextLockStr,
 			NextUnlockAt:     nextUnlockStr,
 			CurrentlyRunning: currentlyRunning,
@@ -407,6 +423,9 @@ func (s *Server) handlePatchRule(c *gin.Context) {
 		return
 	}
 
+	// Immediately reconcile IFEO state so toggling enabled doesn't wait for restart.
+	reconcileIFEOForRule(s, id)
+
 	fresh, _ := db.GetRuleByID(s.DB, id)
 	c.JSON(http.StatusOK, gin.H{"rule": fresh})
 }
@@ -422,6 +441,9 @@ func (s *Server) handleDeleteRule(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "rule not found"})
 		return
 	}
+
+	// Clear IFEO key before removing the rule from the DB so the exe is no longer intercepted.
+	clearIFEOKey(existing.ExeName)
 
 	if err := db.DeleteRule(s.DB, id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

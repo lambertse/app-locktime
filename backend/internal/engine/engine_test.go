@@ -128,6 +128,69 @@ func TestIsInSchedule_WeekdaySchedule_Weekend(t *testing.T) {
 	}
 }
 
+// makeTimeOnDay creates a time.Time on a specific date (year 2026) for DOW testing.
+// weekday: 0=Sunday (2026-03-22), 1=Monday (2026-03-23), 6=Saturday (2026-03-28)
+func makeTimeOnDay(weekday, hour, minute int) time.Time {
+	// Base: Sunday 2026-03-22 (DOW=0). Add weekday days.
+	base := time.Date(2026, 3, 22, 0, 0, 0, 0, time.UTC)
+	return base.AddDate(0, 0, weekday).Add(time.Duration(hour)*time.Hour + time.Duration(minute)*time.Minute)
+}
+
+// Overnight DOW crossing tests: schedule days:[0] (Sunday), 22:00–08:00
+// The allow window starts Sunday 22:00 and ends Monday 08:00.
+
+func TestIsInSchedule_Overnight_MondayMorning_Inside(t *testing.T) {
+	// Monday 01:00 AM — inside a Sunday overnight window (after midnight portion).
+	// The window started Sunday 22:00, so yesterday's DOW (Sunday=0) should match.
+	sched := makeSched([]int{0}, "22:00", "08:00") // Sunday overnight
+	now := makeTimeOnDay(1, 1, 0)                   // Monday 01:00
+	if int(now.Weekday()) != 1 {
+		t.Fatalf("expected Monday (DOW=1), got %d", int(now.Weekday()))
+	}
+	ok, err := IsInSchedule(sched, now)
+	if err != nil || !ok {
+		t.Fatalf("expected inside Sunday overnight window at Monday 01:00, got ok=%v err=%v", ok, err)
+	}
+}
+
+func TestIsInSchedule_Overnight_MondayMorning_Outside(t *testing.T) {
+	// Monday 09:00 AM — outside the Sunday overnight window (window ends at 08:00).
+	sched := makeSched([]int{0}, "22:00", "08:00") // Sunday overnight
+	now := makeTimeOnDay(1, 9, 0)                   // Monday 09:00
+	ok, err := IsInSchedule(sched, now)
+	if err != nil || ok {
+		t.Fatalf("expected outside Sunday overnight window at Monday 09:00, got ok=%v err=%v", ok, err)
+	}
+}
+
+func TestIsInSchedule_Overnight_SaturdayNight_Inside(t *testing.T) {
+	// Saturday 23:30 — inside a Sat-Sun overnight window (before-midnight portion on Saturday).
+	// days:[6] = Saturday, window 22:00–08:00.
+	sched := makeSched([]int{6}, "22:00", "08:00") // Saturday overnight
+	now := makeTimeOnDay(6, 23, 30)                 // Saturday 23:30
+	if int(now.Weekday()) != 6 {
+		t.Fatalf("expected Saturday (DOW=6), got %d", int(now.Weekday()))
+	}
+	ok, err := IsInSchedule(sched, now)
+	if err != nil || !ok {
+		t.Fatalf("expected inside Saturday overnight window at Sat 23:30, got ok=%v err=%v", ok, err)
+	}
+}
+
+func TestIsInSchedule_Overnight_SundayEarlyMorning_Inside(t *testing.T) {
+	// Sunday 00:30 AM — inside a Saturday overnight window (after-midnight portion on Sunday).
+	// The window started Saturday 22:00 → runs through Sunday 08:00.
+	sched := makeSched([]int{6}, "22:00", "08:00") // Saturday overnight
+	now := makeTimeOnDay(0, 0, 30)                  // Sunday 00:30 (makeTimeOnDay(0,...) = Sunday)
+	if int(now.Weekday()) != 0 {
+		t.Fatalf("expected Sunday (DOW=0), got %d", int(now.Weekday()))
+	}
+	ok, err := IsInSchedule(sched, now)
+	if err != nil || !ok {
+		t.Fatalf("expected inside Saturday overnight window at Sunday 00:30, got ok=%v err=%v", ok, err)
+	}
+}
+
 // ─────────────────────────────────────────
 // ComputeRuleStatus tests
 // ─────────────────────────────────────────

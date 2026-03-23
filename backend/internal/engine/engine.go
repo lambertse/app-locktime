@@ -52,23 +52,52 @@ func IsInWindow(allowStart, allowEnd string, now time.Time) (bool, error) {
 	return nowM >= startM || nowM < endM, nil
 }
 
-// IsInSchedule returns true if 'now' falls within any allow window of the schedule,
-// considering only days-of-week and time-of-day.
-func IsInSchedule(sched db.Schedule, now time.Time) (bool, error) {
-	nowDOW := int(now.Weekday()) // 0=Sunday
-
-	dayMatches := false
-	for _, d := range sched.Days {
-		if d == nowDOW {
-			dayMatches = true
-			break
+// containsDay returns true if the given day (0=Sunday) is in the days slice.
+func containsDay(days []int, day int) bool {
+	for _, d := range days {
+		if d == day {
+			return true
 		}
 	}
-	if !dayMatches {
+	return false
+}
+
+// IsInSchedule returns true if 'now' falls within the allow window of the schedule,
+// considering days-of-week and time-of-day. Correctly handles overnight windows
+// (e.g. allow_start=22:00 allow_end=08:00) that cross midnight into the next day:
+// at 01:00 Monday inside a Sunday overnight window, yesterday's DOW is checked.
+func IsInSchedule(sched db.Schedule, now time.Time) (bool, error) {
+	sh, sm, err := parseHHMM(sched.AllowStart)
+	if err != nil {
+		return false, err
+	}
+	eh, em, err := parseHHMM(sched.AllowEnd)
+	if err != nil {
+		return false, err
+	}
+
+	nowM := now.Hour()*60 + now.Minute()
+	startM := sh*60 + sm
+	endM := eh*60 + em
+	isOvernight := endM < startM // e.g. 22:00–08:00
+
+	if isOvernight {
+		if nowM < endM {
+			// We are in the "after midnight" portion of the overnight window.
+			// The window started yesterday, so check yesterday's DOW.
+			yesterday := (int(now.Weekday()) + 6) % 7
+			return containsDay(sched.Days, yesterday), nil
+		}
+		if nowM >= startM {
+			// We are in the "before midnight" portion — check today's DOW.
+			return containsDay(sched.Days, int(now.Weekday())), nil
+		}
+		// Between endM and startM: outside the window entirely.
 		return false, nil
 	}
 
-	return IsInWindow(sched.AllowStart, sched.AllowEnd, now)
+	// Normal (non-overnight) window: check today's DOW and time range.
+	return containsDay(sched.Days, int(now.Weekday())) && nowM >= startM && nowM < endM, nil
 }
 
 // IsRuleInAllowWindow returns true if now is in ANY allow window across all schedules.
