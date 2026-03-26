@@ -1,4 +1,4 @@
-.PHONY: build-windows test clean tidy
+.PHONY: build-windows test clean tidy installer
 
 GOOS     = windows
 GOARCH   = amd64
@@ -30,3 +30,10 @@ tidy:
 
 clean:
 	rm -rf $(DIST)
+
+installer: build-windows
+	@mkdir -p ../installer
+	cp $(DIST)/locktime-svc.exe ../installer/
+	cp $(DIST)/blocker.exe ../installer/
+	cd .. && makensis installer/locktime.nsi
+	@echo "Installer: installer/locktime-installer.exe"

@@ -75,7 +75,12 @@ windows-app-locktime/
 
 ### Download (Recommended)
 
-> Coming soon — pre-built installer will be available in [Releases](https://github.com/lambertse/windows-app-locktime/releases)
+Download the latest installer from [Releases](https://github.com/lambertse/windows-app-locktime/releases).
+
+1. Download `locktime-installer.exe`
+2. Run as Administrator
+3. The service installs and starts automatically
+4. Your browser will open `http://localhost:8089` — the dashboard is ready
 
 ### Build from Source
 
@@ -214,7 +219,7 @@ The database is managed entirely through the web dashboard — no manual editing
 - [x] Usage stats (v1)
 - [ ] PIN override — unlock temporarily with a password (v2)
 - [ ] System tray icon (v2)
-- [ ] Pre-built NSIS installer (v2)
+- [x] Pre-built NSIS installer (v2)
 - [ ] Notification toasts before lock kicks in (v2)
 - [ ] Multiple profiles (work mode / weekend mode) (v3)
 
