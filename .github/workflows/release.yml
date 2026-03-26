@@ -1,0 +1,56 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+env:
+  VERSION: ${{ github.ref_name }}
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        run: cd frontend && npm ci && npm run build
+
+      - name: Setup Go 1.22
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build Windows binaries
+        run: cd backend && make build-windows
+
+      - name: Install NSIS
+        run: sudo apt-get install -y nsis
+
+      - name: Copy binaries to installer directory
+        run: |
+          cp backend/dist/locktime-svc.exe installer/
+          cp backend/dist/blocker.exe installer/
+
+      - name: Build installer
+        run: makensis installer/locktime.nsi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: installer/locktime-installer.exe
+          generate_release_notes: true
+          draft: false
