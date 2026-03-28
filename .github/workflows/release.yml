@@ -40,10 +40,11 @@ jobs:
       - name: Install NSIS
         run: sudo apt-get install -y nsis
 
-      - name: Copy binaries to installer directory
+      - name: Copy binaries and frontend to installer directory
         run: |
           cp backend/dist/locktime-svc.exe installer/
           cp backend/dist/blocker.exe installer/
+          cp -r frontend/dist installer/dist
 
       - name: Build installer
         run: makensis installer/locktime.nsi
