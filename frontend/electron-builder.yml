@@ -14,22 +14,29 @@ extraResources:
     to: icons/
     filter:
       - "**/*"
+  - from: ../backend/dist/
+    to: bin/
+    filter:
+      - "locktime-svc.exe"
+      - "blocker.exe"
 
 win:
   target:
     - target: nsis
       arch:
         - x64
-    - target: portable
-      arch:
-        - x64
   icon: public/icons/icon.ico
+  requestedExecutionLevel: requireAdministrator
 
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
+  shortcutName: LockTime
+  include: build/installer.nsh
+  uninstallDisplayName: LockTime
+  deleteAppDataOnUninstall: false
 
 mac:
   target:

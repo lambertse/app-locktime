@@ -8,12 +8,66 @@ import {
   session,
 } from 'electron'
 import path from 'path'
+import { execFile, spawn } from 'child_process'
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let isQuitting = false
+
+// ─── Service Management ─────────────────────────────────────────────────────
+
+const SERVICE_NAME = 'LockTimeSvc'
+const API_URL = 'http://127.0.0.1:8089/api/v1/status'
+
+function getServiceExePath(): string {
+  if (isDev) return '' // service managed manually in dev
+  return path.join(process.resourcesPath, 'bin', 'locktime-svc.exe')
+}
+
+function isServiceRunning(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (process.platform !== 'win32') {
+      resolve(false)
+      return
+    }
+    execFile('sc', ['query', SERVICE_NAME], (err, stdout) => {
+      resolve(!err && stdout.includes('RUNNING'))
+    })
+  })
+}
+
+async function ensureServiceRunning(): Promise<void> {
+  if (isDev || process.platform !== 'win32') return
+
+  const running = await isServiceRunning()
+  if (running) return
+
+  const svcPath = getServiceExePath()
+  if (!svcPath) return
+
+  console.log('[LockTime] Starting background service...')
+  // Try sc start first (service already installed)
+  await new Promise<void>((resolve) => {
+    execFile('sc', ['start', SERVICE_NAME], () => resolve())
+  })
+
+  // Wait up to 5s for API to become reachable
+  for (let i = 0; i < 10; i++) {
+    await new Promise((r) => setTimeout(r, 500))
+    try {
+      const res = await fetch(API_URL)
+      if (res.ok) {
+        console.log('[LockTime] Service is up')
+        return
+      }
+    } catch {
+      // not ready yet
+    }
+  }
+  console.warn('[LockTime] Service did not respond in time')
+}
 
 // Enforce single instance
 const gotLock = app.requestSingleInstanceLock()
@@ -151,13 +205,16 @@ ipcMain.on('window:quit', () => {
   app.quit()
 })
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   app.setName('LockTime')
 
   app.setLoginItemSettings({
     openAtLogin: false,
     name: 'LockTime',
   })
+
+  // Ensure the Go backend service is running before showing the window
+  await ensureServiceRunning()
 
   createWindow()
   createTray()
