@@ -47,6 +47,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: frontend/release/*.exe 
+          generate_release_notes: true
+          draft:  false
+
       # electron-builder --publish always handles release creation + artifact upload
 
   # ── macOS ──────────────────────────────────────────────────────────────────
