@@ -8,3 +8,4 @@ desktop/release/
 
 .git/
 .claude/
+.DS_Store

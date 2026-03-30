@@ -1,10 +1,12 @@
-# LockTime
+# AppLocker
 
 > Stop yourself from opening League of Legends at 2 AM. Or any app, really.
 
-A lightweight utility that blocks or time-limits any application on a schedule — powered by a Go background service and a web dashboard. Runs on **Windows** and **macOS**.
+A lightweight utility that blocks or time-limits any application on a schedule — powered by a Go background service and a desktop app. Runs on **Windows** and **macOS**.
 
 ![Dashboard Screenshot](docs/images/dashboard.png)
+
+![Stats](docs/images/stats.png)
 
 ---
 
@@ -24,22 +26,23 @@ A lightweight utility that blocks or time-limits any application on a schedule �
 
 ```
 app-locktime/
-├── backend/
+├── backend/                       # Go background service
 │   ├── cmd/
-│   │   ├── locktime-svc/      # Service binary (Windows + macOS)
-│   │   └── blocker/           # IFEO interceptor stub (Windows only)
+│   │   ├── locktime-svc/          # Service binary (Windows + macOS)
+│   │   └── blocker/               # IFEO interceptor stub (Windows only)
 │   └── internal/
-│       ├── api/               # REST API (Gin, port 8089)
-│       ├── db/                # SQLite schema + queries
-│       ├── engine/            # Rule evaluation + time window logic
-│       ├── watcher/           # Process monitor (cross-platform)
-│       └── service/           # Service lifecycle (platform-specific)
-└── frontend/                  # React/Vite dashboard (port 8090)
+│       ├── api/                   # REST API (Gin, port 8089)
+│       ├── db/                    # SQLite schema + queries
+│       ├── engine/                # Rule evaluation + time window logic
+│       ├── watcher/               # Process monitor (cross-platform)
+│       └── service/               # Service lifecycle (platform-specific)
+└── desktop/                       # Electron desktop app
+    ├── electron/                  # Main process + preload (IPC bridge)
     └── src/
-        ├── pages/             # Dashboard, Rules, Stats
-        ├── components/        # UI components
-        ├── api/               # Typed API client
-        └── lib/               # Utilities
+        ├── pages/                 # Dashboard, Rules, Stats
+        ├── components/            # UI components
+        ├── api/                   # Typed API client
+        └── lib/                   # Utilities
 ```
 
 ### Ports
@@ -83,13 +86,17 @@ Download the latest release from [Releases](https://github.com/lambertse/app-loc
 
 **Windows** — run the installer as Administrator:
 ```
-locktime-installer.exe
+AppLocker.exe
 ```
-The service installs, starts automatically, and opens `http://localhost:8090`.
+The service installs, starts automatically, and the AppLocker window opens.
 
-**macOS** — install the daemon manually after building (see Build from Source):
+**macOS** — open the disk image and drag AppLocker to Applications:
+```
+AppLocker.dmg
+```
+Then install the background service:
 ```bash
-sudo ./locktime-svc --install
+sudo /Applications/AppLocker.app/Contents/Resources/bin/locktime-svc --install
 ```
 
 ### Build from Source
@@ -99,11 +106,11 @@ git clone https://github.com/lambertse/app-locktime.git
 cd app-locktime
 ```
 
-**Frontend:**
+**Desktop (Electron + React):**
 ```bash
-cd frontend
+cd desktop
 npm install
-npm run build        # output: frontend/dist/
+npm run build        # output: desktop/dist/ + desktop/dist-electron/
 ```
 
 **Backend — Windows:**
@@ -118,13 +125,20 @@ cd backend
 make build-macos     # output: dist/locktime-svc
 ```
 
+**Package the desktop app:**
+```bash
+cd desktop
+npm run dist:win     # output: desktop/release/AppLocker.exe
+npm run dist:mac     # output: desktop/release/AppLocker.dmg
+```
+
 ---
 
 ## Usage
 
 ### Open the dashboard
 
-Once the service is running:
+Once the service is running, open the **AppLocker** desktop app or navigate to:
 ```
 http://localhost:8090
 ```
@@ -169,12 +183,12 @@ go run ./cmd/locktime-svc --run
 
 On macOS this runs the full service (process watcher + SPA server). Windows-specific features (IFEO, native file picker) are stubbed out on non-Windows platforms via build tags.
 
-### Run the frontend dev server
+### Run the desktop dev server
 
 ```bash
-cd frontend
+cd desktop
 npm run dev
-# Dev server at http://localhost:5173
+# Electron window opens, Vite dev server at http://localhost:5173
 # /api/* proxied to http://127.0.0.1:8089
 ```
 
@@ -192,8 +206,8 @@ make test-cover      # with HTML coverage report
 
 | Platform | Database path |
 |----------|--------------|
-| Windows  | `C:\ProgramData\locktime\locktime.db` |
-| macOS    | `/Library/Application Support/locktime/locktime.db` |
+| Windows  | `C:\ProgramData\AppLocker\applocker.db` |
+| macOS    | `/Library/Application Support/AppLocker/applocker.db` |
 
 The database is managed entirely through the dashboard — no manual editing needed.
 
@@ -217,9 +231,9 @@ The database is managed entirely through the dashboard — no manual editing nee
 - [x] Usage stats
 - [x] Windows installer (NSIS)
 - [x] macOS support
+- [x] Electron desktop app
 - [ ] PIN override — unlock temporarily with a password
 - [ ] Notification before lock kicks in
-- [ ] System tray icon
 - [ ] Multiple profiles (work / weekend mode)
 
 ---
