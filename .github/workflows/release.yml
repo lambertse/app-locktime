@@ -100,4 +100,3 @@ jobs:
         with:
           files: |
             frontend/release/*.dmg
-            frontend/release/*-mac.zip
