@@ -54,6 +54,15 @@ set(IBRIDGER_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
 set(IBRIDGER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(ibridger)
 
+# Declare the spdlog dependency
+FetchContent_Declare(
+  spdlog
+  GIT_REPOSITORY https://github.com/gabime/spdlog.git
+  GIT_TAG v1.x 
+)
+FetchContent_MakeAvailable(spdlog)
+#
+
 # ── SQLite3 (amalgamation, bundled) ──────────────────────────────────────────
 add_library(sqlite3 STATIC third_party/sqlite/sqlite3.c)
 target_include_directories(sqlite3 PUBLIC third_party/sqlite)
@@ -76,6 +85,7 @@ add_custom_command(
 # ── Core library (shared by locktime-svc and blocker) ─────────────────────────
 add_library(locktime_core STATIC
   src/common/utils.cpp
+  src/common/logger.cpp
   src/engine/engine.cpp
   src/db/database.cpp
   src/rpc/locktime_service.cpp
@@ -91,6 +101,7 @@ target_link_libraries(locktime_core PUBLIC
   ibridger::core
   protobuf::libprotobuf
   sqlite3
+  spdlog::spdlog
 )
 # if(WIN32)
 #   target_link_libraries(locktime_core PUBLIC advapi32 user32)

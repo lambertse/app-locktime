@@ -12,6 +12,7 @@
 #include <system_error>
 
 #include "common/constants.h"
+#include "common/logger.h"
 #include "common/utils.h"
 #include "db/database.h"
 #include "rpc/locktime_service.h"
@@ -63,7 +64,9 @@ int ServiceManager::run_service() {
     rpc_server->register_service(svc);
     rpc_server->start();
 
+    logger::log_info("locktime-svc started, RPC endpoint: {}", kRpcEndpoint);
   } catch (const std::exception& ex) {
+    logger::log_error("locktime-svc startup error: {}", ex.what());
     std::fprintf(stderr, "locktime-svc: startup error: %s\n", ex.what());
     return 1;
   }
@@ -74,6 +77,8 @@ int ServiceManager::run_service() {
     nanosleep(&ts, nullptr);
   }
 
+  logger::log_info("locktime-svc shutting down");
+
   // Shutdown
   if (watcher) {
     watcher->close_all_sessions("service_stop");
@@ -83,6 +88,7 @@ int ServiceManager::run_service() {
     rpc_server->stop();
   }
 
+  logger::log_info("locktime-svc stopped");
   return 0;
 }
 

@@ -1,6 +1,7 @@
 #include "locktime_service.h"
 
 #include "common/constants.h"
+#include "common/logger.h"
 #include "common/utils.h"
 #include "engine/engine.h"
 #include "watcher/watcher.h"
@@ -10,7 +11,6 @@
 
 #include <algorithm>
 #include <ctime>
-#include <iostream>
 #include <sstream>
 
 #include "locktime.pb.h"
@@ -232,11 +232,14 @@ std::pair<std::string, std::error_code> LockTimeService::handle_create_rule(
 
   db_->create_rule(r);
   db_->insert_audit("create_rule", r.id, r.name);
+  logger::log_info("rule created: name='{}' exe='{}' enabled={}", r.name,
+                   r.exe_name, r.enabled);
 
 #ifdef _WIN32
   if (r.enabled) {
     set_ifeo(r.exe_name, kBlockerPath);
     db_->set_rule_ifeo_active(r.id, true);
+    logger::log_info("IFEO set for '{}'", r.exe_name);
   }
 #endif
 
@@ -274,14 +277,18 @@ std::pair<std::string, std::error_code> LockTimeService::handle_update_rule(
 
   db_->update_rule(r);
   db_->insert_audit("update_rule", r.id, r.name);
+  logger::log_info("rule updated: name='{}' exe='{}' enabled={}", r.name,
+                   r.exe_name, r.enabled);
 
 #ifdef _WIN32
   if (r.enabled) {
     set_ifeo(r.exe_name, kBlockerPath);
     db_->set_rule_ifeo_active(r.id, true);
+    logger::log_info("IFEO set for '{}'", r.exe_name);
   } else {
     clear_ifeo(r.exe_name);
     db_->set_rule_ifeo_active(r.id, false);
+    logger::log_info("IFEO cleared for '{}'", r.exe_name);
   }
 #endif
 
@@ -306,15 +313,21 @@ std::pair<std::string, std::error_code> LockTimeService::handle_patch_rule(
 
   db_->patch_rule(req.id(), req.has_enabled(), req.enabled(), req.has_name(),
                   req.name());
+  if (req.has_enabled()) {
+    logger::log_info("rule patched: exe='{}' enabled={}", existing->exe_name,
+                     req.enabled());
+  }
 
 #ifdef _WIN32
   if (req.has_enabled()) {
     if (req.enabled()) {
       set_ifeo(existing->exe_name, kBlockerPath);
       db_->set_rule_ifeo_active(req.id(), true);
+      logger::log_info("IFEO set for '{}'", existing->exe_name);
     } else {
       clear_ifeo(existing->exe_name);
       db_->set_rule_ifeo_active(req.id(), false);
+      logger::log_info("IFEO cleared for '{}'", existing->exe_name);
     }
   }
 #endif
@@ -342,10 +355,13 @@ std::pair<std::string, std::error_code> LockTimeService::handle_delete_rule(
 
 #ifdef _WIN32
   clear_ifeo(existing->exe_name);
+  logger::log_info("IFEO cleared for '{}'", existing->exe_name);
 #endif
 
   db_->delete_rule(req.id());
   db_->insert_audit("delete_rule", req.id(), existing->name);
+  logger::log_info("rule deleted: name='{}' exe='{}'", existing->name,
+                   existing->exe_name);
 
   ::locktime::rpc::DeleteRuleResponse resp;
   std::string out;
@@ -373,6 +389,8 @@ std::pair<std::string, std::error_code> LockTimeService::handle_grant_override(
   db_->create_override(o);
   db_->insert_audit("grant_override", o.rule_id,
                     std::to_string(o.duration_minutes) + "min: " + o.reason);
+  logger::log_info("override granted: rule_id='{}' duration={}min reason='{}'",
+                   o.rule_id, o.duration_minutes, o.reason);
 
   ::locktime::rpc::GrantOverrideResponse resp;
   auto* p = resp.mutable_override_info();
@@ -400,6 +418,7 @@ std::pair<std::string, std::error_code> LockTimeService::handle_revoke_override(
 
   if (revoked) {
     db_->insert_audit("revoke_override", req.rule_id(), "");
+    logger::log_info("override revoked: rule_id='{}'", req.rule_id());
   }
 
   ::locktime::rpc::RevokeOverrideResponse resp;
@@ -577,11 +596,6 @@ LockTimeService::handle_get_block_attempts(const std::string& payload) {
 
 std::pair<std::string, std::error_code> LockTimeService::handle_get_processes(
     const std::string& payload) {
-  // Debug log:
-  std::cout << "Received GetProcesses request with payload: " << payload
-            << std::endl;
-  //
-
   ::locktime::rpc::GetProcessesRequest req;
   if (!req.ParseFromString(payload)) return {{}, serial_err()};
 
@@ -634,6 +648,7 @@ std::pair<std::string, std::error_code> LockTimeService::handle_update_config(
 
   for (const auto& [k, v] : req.config()) {
     db_->set_config(k, v);
+    logger::log_info("config updated: {}='{}'", k, v);
   }
 
   auto cfg = db_->get_config();
@@ -719,6 +734,8 @@ std::pair<std::string, std::error_code> LockTimeService::handle_check_app(
     // Log block attempt
     if (!resp.allowed()) {
       db_->insert_audit("block_attempt", rule.id, exe_path);
+      logger::log_warning("app blocked: exe='{}' rule='{}' reason='{}'",
+                          exe_path, rule.name, resp.reason());
     }
     break;
   }

@@ -13,6 +13,7 @@ Menu.setApplicationMenu(null)
 
 import path from 'path'
 import { execFile } from 'child_process'
+import { initLogger, log } from './logger'
 import { LockTimeRPCClient, RPC_ENDPOINT } from './locktime-rpc'
 import type {
   CreateRuleRequest,
@@ -30,7 +31,6 @@ let isQuitting = false
 
 // ─── RPC Client ──────────────────────────────────────────────────────────────
 const rpc = new LockTimeRPCClient(RPC_ENDPOINT)
-console.log(`[LockTime] RPC client initialized with endpoint ${RPC_ENDPOINT}`)
 // ─── Service Management ──────────────────────────────────────────────────────
 
 const SERVICE_NAME_WIN   = 'AppLockerSvc'
@@ -62,7 +62,7 @@ function isServiceRunning(): Promise<boolean> {
 }
 
 async function ensureServiceRunning(): Promise<void> {
-  console.log('[LockTime] Ensuring service is running...')
+  log.info('ensuring backend service is running...')
   // In dev mode the developer runs the backend manually; just attempt a lazy
   // connect so the first RPC call doesn't block on reconnection.
   if (isDev) {
@@ -95,13 +95,13 @@ async function ensureServiceRunning(): Promise<void> {
   for (let i = 0; i < 20; i++) {
     try {
       await rpc.connect()
-      console.log('[LockTime] RPC server is up')
+      log.info(`RPC server reachable at ${RPC_ENDPOINT}`)
       return
     } catch {
       await new Promise((r) => setTimeout(r, 500))
     }
   }
-  console.warn('[LockTime] RPC server did not respond in time')
+  log.warn('RPC server did not respond within 10 s — continuing anyway')
 }
 
 // ─── Single Instance ─────────────────────────────────────────────────────────
@@ -237,7 +237,7 @@ function rpcHandler<T>(fn: () => Promise<T>) {
       if (!rpc.isConnected) await rpc.connect()
       return await fn()
     } catch (err) {
-      console.error('[RPC]', err)
+      log.error(`RPC error: ${err instanceof Error ? err.message : String(err)}`)
       return { __error: err instanceof Error ? err.message : String(err) }
     }
   }
@@ -296,9 +296,29 @@ ipcMain.handle('api:updateConfig', (_e, config: Record<string, string>) =>
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
 
+// ─── IPC — Renderer logging bridge ───────────────────────────────────────────
+// The renderer cannot use @vscode/spdlog directly (native addon, main-only).
+// It sends log records here via fire-and-forget ipcRenderer.send().
+
+ipcMain.on('log:write', (_e, level: string, message: string) => {
+  const prefixed = `[renderer] ${message}`
+  switch (level) {
+    case 'error': log.error(prefixed); break
+    case 'warn':  log.warn(prefixed);  break
+    case 'debug': log.debug(prefixed); break
+    default:      log.info(prefixed);  break
+  }
+})
+
+// ─── App Lifecycle ────────────────────────────────────────────────────────────
+
 app.whenReady().then(async () => {
   app.setName('AppLocker')
   app.setLoginItemSettings({ openAtLogin: false, name: 'AppLocker' })
+
+  await initLogger()
+  log.info(`AppLocker starting — platform=${process.platform} dev=${isDev}`)
+  log.info(`RPC endpoint: ${RPC_ENDPOINT}`)
 
   await ensureServiceRunning()
 
@@ -316,6 +336,8 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   isQuitting = true
+  log.info('AppLocker shutting down')
+  log.flush()
   rpc.disconnect()
 })
 

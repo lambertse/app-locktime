@@ -63,4 +63,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   minimize: () => ipcRenderer.send('window:minimize'),
   hide:     () => ipcRenderer.send('window:hide'),
   quit:     () => ipcRenderer.send('window:quit'),
+
+  // Fire-and-forget logging bridge — writes to the main-process spdlog file.
+  log: (level: string, message: string) =>
+    ipcRenderer.send('log:write', level, message),
 })

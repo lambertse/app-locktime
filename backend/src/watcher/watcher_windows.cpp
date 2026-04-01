@@ -9,6 +9,7 @@
 #include <thread>
 
 #include "common/constants.h"
+#include "common/logger.h"
 #include "common/utils.h"
 #include "engine/engine.h"
 #include "watcher.h"
@@ -30,11 +31,13 @@ Watcher::~Watcher() { stop(); }
 void Watcher::start() {
   running_ = true;
   thread_ = std::thread([this] { poll_loop(); });
+  logger::log_info("watcher started (poll interval: {}ms)", kWatcherPollMs);
 }
 
 void Watcher::stop() {
   running_ = false;
   if (thread_.joinable()) thread_.join();
+  logger::log_info("watcher stopped");
 }
 
 // ── close_all_sessions
@@ -42,10 +45,14 @@ void Watcher::stop() {
 
 void Watcher::close_all_sessions(const std::string& reason) {
   auto now = std::time(nullptr);
+  int count = static_cast<int>(active_sessions_.size());
   for (auto& [rule_id, pair] : active_sessions_) {
     db_->close_session(pair.first, now, reason);
   }
   active_sessions_.clear();
+  if (count > 0) {
+    logger::log_info("closed {} session(s), reason='{}'", count, reason);
+  }
 }
 
 // ── enumerate_processes
@@ -171,6 +178,8 @@ void Watcher::reconcile(const std::vector<ProcessEntry>& procs,
           active_sessions_.find(rule.id) == active_sessions_.end()) {
         int64_t sid = db_->open_session(rule.id, pid, now);
         active_sessions_[rule.id] = {sid, pid};
+        logger::log_info("session opened: rule='{}' exe='{}' pid={}", rule.name,
+                         rule.exe_name, pid);
       }
       // If app stopped, close session.
       if (!is_running &&
@@ -178,6 +187,8 @@ void Watcher::reconcile(const std::vector<ProcessEntry>& procs,
         auto& [sid, _pid] = active_sessions_[rule.id];
         db_->close_session(sid, now, "stopped");
         active_sessions_.erase(rule.id);
+        logger::log_info("session closed: rule='{}' exe='{}' reason=stopped",
+                         rule.name, rule.exe_name);
       }
     } else if (status.status == "locked") {
       // App should be blocked — terminate if running.
@@ -186,12 +197,17 @@ void Watcher::reconcile(const std::vector<ProcessEntry>& procs,
         db_->insert_audit(
             "watcher_kill", rule.id,
             "pid=" + std::to_string(pid) + " reason=" + status.reason);
+        logger::log_warning(
+            "process killed: rule='{}' exe='{}' pid={} reason='{}'", rule.name,
+            rule.exe_name, pid, status.reason);
       }
       // Close any open session.
       if (active_sessions_.find(rule.id) != active_sessions_.end()) {
         auto& [sid, _pid] = active_sessions_[rule.id];
         db_->close_session(sid, now, "locked_" + status.reason);
         active_sessions_.erase(rule.id);
+        logger::log_info("session closed: rule='{}' exe='{}' reason=locked_{}",
+                         rule.name, rule.exe_name, status.reason);
       }
     }
   }

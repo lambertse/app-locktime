@@ -9,6 +9,7 @@
 #include <system_error>
 
 #include "common/constants.h"
+#include "common/logger.h"
 #include "common/utils.h"
 #include "db/database.h"
 #include "rpc/locktime_service.h"
@@ -49,6 +50,7 @@ static void WINAPI ServiceCtrl(DWORD ctrl) {
   switch (ctrl) {
     case SERVICE_CONTROL_STOP:
     case SERVICE_CONTROL_SHUTDOWN:
+      logger::log_info("locktime-svc received stop/shutdown signal");
       report_status(SERVICE_STOP_PENDING, NO_ERROR, 5000);
       SetEvent(g_stop_event);
       break;
@@ -94,15 +96,18 @@ static void WINAPI ServiceMain(DWORD /*argc*/, LPWSTR* /*argv*/) {
     g_watcher = std::make_unique<Watcher>(g_db);
     g_watcher->start();
   } catch (...) {
+    logger::log_error("locktime-svc startup failed with unhandled exception");
     report_status(SERVICE_STOPPED, ERROR_EXCEPTION_IN_SERVICE);
     return;
   }
 
+  logger::log_info("locktime-svc started, RPC endpoint: {}", kRpcEndpoint);
   report_status(SERVICE_RUNNING);
 
   // Wait for stop signal
   WaitForSingleObject(g_stop_event, INFINITE);
 
+  logger::log_info("locktime-svc shutting down");
   report_status(SERVICE_STOP_PENDING, NO_ERROR, 5000);
 
   // Shutdown
@@ -120,6 +125,7 @@ static void WINAPI ServiceMain(DWORD /*argc*/, LPWSTR* /*argv*/) {
   CloseHandle(g_stop_event);
   g_stop_event = nullptr;
 
+  logger::log_info("locktime-svc stopped");
   report_status(SERVICE_STOPPED);
 }
 

@@ -21,7 +21,9 @@ export default defineConfig({
               // @lambertse/ibridger is CJS-only (no ESM export). Externalizing
               // it lets Electron require() it from node_modules at runtime
               // instead of trying to bundle it as ESM.
-              external: ['@lambertse/ibridger'],
+              // Native addons and CJS-only packages must not be bundled —
+              // Electron requires them at runtime from node_modules.
+              external: ['@lambertse/ibridger', '@vscode/spdlog'],
             },
           },
         },
