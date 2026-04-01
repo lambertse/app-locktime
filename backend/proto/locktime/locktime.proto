@@ -1,0 +1,5 @@
+# This file is a reference copy.
+# The canonical source is at: ../../proto/locktime/locktime.proto (repo root)
+# The CMake build reads from the repo root proto/ directory directly.
+# To regenerate: cmake --build build --target generate_proto
+# package locktime.rpc (C++ namespace: locktime::rpc)

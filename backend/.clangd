@@ -1,0 +1,9 @@
+CompileFlags:
+  # Once `cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON` is run,
+  # clangd will use build/compile_commands.json automatically.
+  # The flags below are fallback for header-only analysis before cmake runs.
+  CompilationDatabase: build/
+  Add:
+    - -Isrc
+    - -Igenerated
+    - -Ithird_party/sqlite

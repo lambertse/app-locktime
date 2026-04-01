@@ -27,28 +27,31 @@ jobs:
           cache: 'npm'
           cache-dependency-path: desktop/package-lock.json
 
-      - name: Setup Go 1.22
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Build Windows binaries (Go)
+      - name: Install protoc (Windows)
+        run: choco install protoc --no-progress -y
+
+      - name: Configure CMake (Windows)
         working-directory: backend
-        run: |
-          go build -ldflags="-s -w -H windowsgui" -o dist/locktime-svc.exe ./cmd/locktime-svc
-          go build -ldflags="-s -w -H windowsgui" -o dist/blocker.exe ./cmd/blocker
-        env:
-          GOOS: windows
-          GOARCH: amd64
-          CGO_ENABLED: '0'
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build C++ backend (Windows)
+        working-directory: backend
+        run: cmake --build build --config Release
 
       - name: Install desktop dependencies
         working-directory: desktop
         run: npm ci
 
+      - name: Generate proto resources
+        working-directory: desktop
+        run: npm run generate-proto
+
       - name: Build and package Electron app (Windows)
         working-directory: desktop
-        run: npm run dist:win
+        run: npm run dist:win:ci
 
       - name: Upload Windows installer to release
         uses: softprops/action-gh-release@v2
@@ -64,8 +67,7 @@ jobs:
       - name: Clean up disk space
         run: |
           df -h
-          rm -rf ~/Library/Caches/pip
-          rm -rf ~/Library/Caches/Homebrew
+          rm -rf ~/Library/Caches/pip ~/Library/Caches/Homebrew
           df -h
 
       - name: Checkout code
@@ -78,27 +80,28 @@ jobs:
           cache: 'npm'
           cache-dependency-path: desktop/package-lock.json
 
-      - name: Setup Go 1.22
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
+      - name: Install protoc (macOS)
+        run: brew install protobuf
 
-      - name: Build macOS universal binary (Go)
+      - name: Configure CMake (macOS)
         working-directory: backend
-        run: |
-          mkdir -p dist
-          GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/locktime-svc-arm64 ./cmd/locktime-svc
-          GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/locktime-svc-amd64 ./cmd/locktime-svc
-          lipo -create -output dist/locktime-svc dist/locktime-svc-arm64 dist/locktime-svc-amd64
-          rm dist/locktime-svc-arm64 dist/locktime-svc-amd64
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build C++ backend (macOS)
+        working-directory: backend
+        run: cmake --build build
 
       - name: Install desktop dependencies
         working-directory: desktop
         run: npm ci
 
+      - name: Generate proto resources
+        working-directory: desktop
+        run: npm run generate-proto
+
       - name: Build and package Electron app (macOS)
         working-directory: desktop
-        run: npm run dist:mac
+        run: npm run dist:mac:ci
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
