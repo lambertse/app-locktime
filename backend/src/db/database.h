@@ -111,6 +111,7 @@ class Database {
   // Execute a statement with optional binding callback.
   void exec_stmt(const std::string& sql,
                  std::function<void(sqlite3_stmt*)> binder = {});
+  void create_db_file(const std::string& path);
 
   // Load schedules for a rule (called while holding mu_).
   std::vector<Schedule> load_schedules_for_rule_locked(

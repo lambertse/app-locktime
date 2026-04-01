@@ -34,7 +34,7 @@ static void signal_handler(int /*sig*/) { g_should_stop = true; }
 // ── run_service
 // ───────────────────────────────────────────────────────────────
 
-int run_service() {
+int ServiceManager::run_service() {
   // Install signal handlers
   struct sigaction sa{};
   sa.sa_handler = signal_handler;
@@ -44,15 +44,18 @@ int run_service() {
   sigaction(SIGINT, &sa, nullptr);
 
   std::shared_ptr<Database> db;
-  std::unique_ptr<Watcher> watcher;
+  std::shared_ptr<Watcher> watcher;
   std::unique_ptr<ibridger::rpc::Server> rpc_server;
 
   try {
     db = std::make_shared<Database>(kDbPath);
     db->crash_recovery(std::time(nullptr));
 
+    watcher = std::make_shared<Watcher>(db);
+    watcher->start();
+
     auto started_at = std::chrono::steady_clock::now();
-    auto svc = std::make_shared<LockTimeService>(db, started_at);
+    auto svc = std::make_shared<LockTimeService>(db, started_at, watcher);
 
     ibridger::rpc::ServerConfig rpc_cfg;
     rpc_cfg.endpoint = kRpcEndpoint;
@@ -60,8 +63,6 @@ int run_service() {
     rpc_server->register_service(svc);
     rpc_server->start();
 
-    watcher = std::make_unique<Watcher>(db);
-    watcher->start();
   } catch (const std::exception& ex) {
     std::fprintf(stderr, "locktime-svc: startup error: %s\n", ex.what());
     return 1;
@@ -88,7 +89,7 @@ int run_service() {
 // ── install_service
 // ───────────────────────────────────────────────────────────
 
-std::error_code install_service(const std::string& exe_path) {
+std::error_code ServiceManager::install_service(const std::string& exe_path) {
   // Write a launchd plist
   std::string plist =
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
@@ -135,7 +136,7 @@ std::error_code install_service(const std::string& exe_path) {
 // ── uninstall_service
 // ─────────────────────────────────────────────────────────
 
-std::error_code uninstall_service() {
+std::error_code ServiceManager::uninstall_service() {
   // Unload from launchd
   std::system(("launchctl unload " + std::string(kLaunchdPlistPath)).c_str());
 

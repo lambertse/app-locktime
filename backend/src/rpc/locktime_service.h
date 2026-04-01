@@ -19,16 +19,19 @@ class Rule;
 
 namespace locktime {
 
+class Watcher;
 class LockTimeService : public ibridger::sdk::ServiceBase {
  public:
   LockTimeService(std::shared_ptr<Database> db,
-                  std::chrono::steady_clock::time_point started_at);
+                  std::chrono::steady_clock::time_point started_at,
+                  std::shared_ptr<Watcher> watcher = nullptr);
 
-  std::string name() const override { return "locktime.LockTimeService"; }
+  std::string name() const override { return "locktime.rpc.LockTimeService"; }
 
  private:
   std::shared_ptr<Database> db_;
   std::chrono::steady_clock::time_point started_at_;
+  std::shared_ptr<Watcher> watcher_;
 
   // ── RPC handlers ────────────────────────────────────────────────────────
   std::pair<std::string, std::error_code> handle_get_status(

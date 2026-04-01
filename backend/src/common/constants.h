@@ -10,8 +10,14 @@ constexpr const char* kBlockerPath = "C:\\ProgramData\\AppLocker\\blocker.exe";
 constexpr const char* kServiceName = "AppLockerSvc";
 #else
 constexpr const char* kRpcEndpoint = "/tmp/locktime-svc.sock";
+
+#ifdef LOCAL_TEST
+constexpr const char* kDbPath = "/tmp/AppLocker/applocker.db";
+#else
 constexpr const char* kDbPath =
     "/Library/Application Support/AppLocker/applocker.db";
+#endif
+
 constexpr const char* kServiceName = "com.lambertse.locktime";
 #endif
 

@@ -8,7 +8,7 @@ int main(int argc, char* argv[]) {
 
   if (cmd == "--install") {
     std::string exe_path = (argc > 0) ? argv[0] : "locktime-svc";
-    auto ec = locktime::install_service(exe_path);
+    auto ec = locktime::ServiceManager::install_service(exe_path);
     if (ec) {
       std::fprintf(stderr, "install failed: %s\n", ec.message().c_str());
       return 1;
@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
   }
 
   if (cmd == "--uninstall") {
-    auto ec = locktime::uninstall_service();
+    auto ec = locktime::ServiceManager::uninstall_service();
     if (ec) {
       std::fprintf(stderr, "uninstall failed: %s\n", ec.message().c_str());
       return 1;
@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
   }
 
   if (cmd == "--run" || cmd.empty()) {
-    return locktime::run_service();
+    return locktime::ServiceManager::run_service();
   }
 
   std::fprintf(stderr, "Usage: locktime-svc [--install|--uninstall|--run]\n");

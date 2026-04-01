@@ -3,12 +3,14 @@
 #include "common/constants.h"
 #include "common/utils.h"
 #include "engine/engine.h"
+#include "watcher/watcher.h"
 
 // Generated protobuf header
 #include <ibridger/common/error.h>
 
 #include <algorithm>
 #include <ctime>
+#include <iostream>
 #include <sstream>
 
 #include "locktime.pb.h"
@@ -77,10 +79,12 @@ static locktime::Schedule schedule_from_payload(
 
 LockTimeService::LockTimeService(
     std::shared_ptr<Database> db,
-    std::chrono::steady_clock::time_point started_at)
+    std::chrono::steady_clock::time_point started_at,
+    std::shared_ptr<Watcher> watcher)
     : ServiceBase("locktime.rpc.LockTimeService"),
       db_(std::move(db)),
-      started_at_(started_at) {
+      started_at_(started_at),
+      watcher_(watcher) {
   register_method("GetStatus",
                   [this](auto& p) { return handle_get_status(p); });
   register_method("ListRules",
@@ -118,6 +122,10 @@ LockTimeService::LockTimeService(
 
 std::pair<std::string, std::error_code> LockTimeService::handle_get_status(
     const std::string& payload) {
+  // Debug log:
+  std::cout << "Received GetStatus request with payload: " << payload
+            << std::endl;
+  //
   ::locktime::rpc::GetStatusRequest req;
   if (!req.ParseFromString(payload)) return {{}, serial_err()};
 
@@ -573,12 +581,26 @@ LockTimeService::handle_get_block_attempts(const std::string& payload) {
 
 std::pair<std::string, std::error_code> LockTimeService::handle_get_processes(
     const std::string& payload) {
+  // Debug log:
+  std::cout << "Received GetProcesses request with payload: " << payload
+            << std::endl;
+  //
+
   ::locktime::rpc::GetProcessesRequest req;
   if (!req.ParseFromString(payload)) return {{}, serial_err()};
 
   // Process list is populated by the watcher; here we return a stub.
   // In the full integration, this would call watcher->enumerate_processes().
+  auto processes =
+      watcher_ ? watcher_->enumerate_processes() : std::vector<ProcessEntry>{};
   ::locktime::rpc::GetProcessesResponse resp;
+
+  for (const auto& p : processes) {
+    auto* pe = resp.add_processes();
+    pe->set_pid(p.pid);
+    pe->set_name(p.exe_name);
+    pe->set_full_path(p.full_path);
+  }
 
   std::string out;
   resp.SerializeToString(&out);

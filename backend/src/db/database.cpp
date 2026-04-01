@@ -1,6 +1,8 @@
 #include "database.h"
 
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <sstream>
 #include <stdexcept>
 
@@ -217,6 +219,7 @@ AuditEntry Database::read_audit_row(sqlite3_stmt* stmt) {
 // ─────────────────────────────────────────────────────────────────
 
 Database::Database(const std::string& path) {
+  create_db_file(path);
   int rc = sqlite3_open(path.c_str(), &db_);
   if (rc != SQLITE_OK) {
     std::string msg = "sqlite3_open failed: ";
@@ -272,6 +275,23 @@ void Database::exec_stmt(const std::string& sql,
   if (rc != SQLITE_DONE && rc != SQLITE_ROW) {
     throw std::runtime_error(std::string("step failed: ") +
                              sqlite3_errmsg(db_));
+  }
+}
+
+void Database::create_db_file(const std::string& path) {
+  std::filesystem::path fsPath = path;
+  if (std::filesystem::exists(fsPath)) {
+    return;
+  }
+  // Create parent directory if not exist
+  if (!std::filesystem::exists(fsPath.parent_path())) {
+    std::filesystem::create_directories(fsPath.parent_path());
+  }
+
+  std::ofstream ofs(fsPath);
+  if (!ofs) {
+    throw std::runtime_error("Failed to create database file: " + path + " - " +
+                             std::strerror(errno));
   }
 }
 

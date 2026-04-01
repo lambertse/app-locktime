@@ -3,6 +3,19 @@ project(locktime VERSION 1.0.0 LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON) 
+# Default is Debug mode:
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build." FORCE)
+  set(CMAKE_C_FLAGS_DEBUG "-O0 -g" CACHE STRING "" FORCE)
+  set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE STRING "" FORCE)
+endif()
+
+
+# -- Local definition --
+if(LOCAL_TEST)
+    add_compile_definitions(LOCAL_TEST)
+endif()
+#
 
 include(FetchContent)
 
