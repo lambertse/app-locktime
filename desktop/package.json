@@ -14,13 +14,16 @@
     "build": "vite build && tsc -p tsconfig.electron.json",
     "lint": "eslint .",
     "preview": "vite preview",
-    "dist": "npm run build && electron-builder --publish never",
-    "dist:win": "npm run build && electron-builder --win --publish never",
-    "dist:mac": "npm run build && electron-builder --mac --publish never",
-    "dist:win:ci": "npm run build && electron-builder --win --publish always",
-    "dist:mac:ci": "npm run build && electron-builder --mac --publish always"
+    "generate-proto": "node scripts/generate-proto.js",
+    "dist": "npm run generate-proto && npm run build && electron-builder --publish never",
+    "dist:win": "npm run generate-proto && npm run build && electron-builder --win --publish never",
+    "dist:mac": "npm run generate-proto && npm run build && electron-builder --mac --publish never",
+    "dist:win:ci": "npm run generate-proto && npm run build && electron-builder --win --publish always",
+    "dist:mac:ci": "npm run generate-proto && npm run build && electron-builder --mac --publish always"
   },
   "dependencies": {
+    "@lambertse/ibridger": "^0.1.0",
+    "protobufjs": "^7.4.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",

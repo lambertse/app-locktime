@@ -15,10 +15,14 @@ extraResources:
     to: icons/
     filter:
       - "**/*"
+  - from: resources/proto/
+    to: proto/
+    filter:
+      - "**/*.proto"
 
 win:
   extraResources:
-    - from: ../backend/dist/
+    - from: ../backend/build/Release/
       to: bin/
       filter:
         - "locktime-svc.exe"
@@ -42,7 +46,7 @@ nsis:
 
 mac:
   extraResources:
-    - from: ../backend/dist/
+    - from: ../backend/build/
       to: bin/
       filter:
         - "locktime-svc"
