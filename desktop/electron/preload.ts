@@ -24,29 +24,29 @@ contextBridge.exposeInMainWorld('api', {
   getStatus: () => invoke('api:getStatus'),
 
   // Rules
-  listRules:  ()                        => invoke('api:listRules'),
-  getRule:    (id: string)              => invoke('api:getRule', id),
-  createRule: (req: unknown)            => invoke('api:createRule', req),
-  updateRule: (req: unknown)            => invoke('api:updateRule', req),
-  patchRule:  (req: unknown)            => invoke('api:patchRule', req),
-  deleteRule: (id: string)              => invoke('api:deleteRule', id),
+  listRules: () => invoke('api:listRules'),
+  getRule: (id: string) => invoke('api:getRule', id),
+  createRule: (req: unknown) => invoke('api:createRule', req),
+  updateRule: (req: unknown) => invoke('api:updateRule', req),
+  patchRule: (req: unknown) => invoke('api:patchRule', req),
+  deleteRule: (id: string) => invoke('api:deleteRule', id),
 
   // Overrides
-  grantOverride:  (req: unknown)        => invoke('api:grantOverride', req),
-  revokeOverride: (ruleId: string)      => invoke('api:revokeOverride', ruleId),
+  grantOverride: (req: unknown) => invoke('api:grantOverride', req),
+  revokeOverride: (ruleId: string) => invoke('api:revokeOverride', ruleId),
 
   // Usage
-  getUsageToday:    ()                  => invoke('api:getUsageToday'),
-  getUsageWeek:     ()                  => invoke('api:getUsageWeek'),
-  getBlockAttempts: (req?: unknown)     => invoke('api:getBlockAttempts', req ?? {}),
+  getUsageToday: () => invoke('api:getUsageToday'),
+  getUsageWeek: () => invoke('api:getUsageWeek'),
+  getBlockAttempts: (req?: unknown) => invoke('api:getBlockAttempts', req ?? {}),
 
   // System
-  getProcesses: ()                      => invoke('api:getProcesses'),
-  browseFile:   ()                      => invoke('api:browseFile'),
+  getProcesses: () => invoke('api:getProcesses'),
+  browseFile: () => invoke('api:browseFile'),
 
   // Config
-  getConfig:    ()                      => invoke('api:getConfig'),
-  updateConfig: (cfg: unknown)          => invoke('api:updateConfig', cfg),
+  getConfig: () => invoke('api:getConfig'),
+  updateConfig: (cfg: unknown) => invoke('api:updateConfig', cfg),
 })
 
 // ─── Window controls ──────────────────────────────────────────────────────────
@@ -61,10 +61,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   minimize: () => ipcRenderer.send('window:minimize'),
-  hide:     () => ipcRenderer.send('window:hide'),
-  quit:     () => ipcRenderer.send('window:quit'),
+  hide: () => ipcRenderer.send('window:hide'),
+  quit: () => ipcRenderer.send('window:quit'),
 
   // Fire-and-forget logging bridge — writes to the main-process spdlog file.
-  log: (level: string, message: string) =>
-    ipcRenderer.send('log:write', level, message),
+  log: (level: string, message: string) => ipcRenderer.send('log:write', level, message),
 })

@@ -7,57 +7,20 @@
  * Transport:
  *   Windows → Named pipe  \\.\pipe\locktime-svc
  *   macOS   → Unix socket /tmp/locktime-svc.sock
+ *
+ * Proto types are generated at build time via `npm run generate-proto`
+ * (scripts/generate-proto.js → electron/generated/locktime_pb.{js,d.ts}).
+ * No .proto file loading at runtime — all encode/decode is static.
  */
 
 import { IBridgerClient } from '@lambertse/ibridger'
-import * as protobuf from 'protobufjs'
-import path from 'path'
-import fs from 'fs'
+import * as pb from '../src/generated/locktime_pb'
 import { log } from './logger'
 
 // ─── Transport endpoint ───────────────────────────────────────────────────────
 
 export const RPC_ENDPOINT =
-  process.platform === 'win32'
-    ? '\\\\.\\pipe\\locktime-svc'
-    : '/tmp/locktime-svc.sock'
-
-// ─── Proto loading ────────────────────────────────────────────────────────────
-
-// Locate the proto file: in dev it's at repo root, in packaged app it's
-// bundled alongside the binary as an extra resource.
-function resolveProtoPath(): string {
-  const candidates = [
-    // Packaged: proto file copied into resources
-    path.join(process.resourcesPath ?? '', 'proto', 'locktime', 'locktime.proto'),
-    // Development: repo layout
-    path.join(__dirname, '..', '..', '..', 'proto', 'locktime', 'locktime.proto'),
-    path.join(__dirname, '..', '..', 'proto', 'locktime', 'locktime.proto'),
-  ]
-  for (const p of candidates) {
-    if (fs.existsSync(p)) return p
-  }
-  throw new Error(`locktime.proto not found. Tried:\n${candidates.join('\n')}`)
-}
-
-let _root: protobuf.Root | null = null
-
-async function getRoot(): Promise<protobuf.Root> {
-  if (_root) return _root
-  const protoPath = resolveProtoPath()
-  _root = await protobuf.load(protoPath)
-  return _root
-}
-
-// ─── ProtoType adapter ────────────────────────────────────────────────────────
-// protobufjs Type is compatible with iBridger's ProtoType<T> interface.
-// We use 'any' here because the generated types are dynamic.
-
-type DynType = protobuf.Type
-
-function lookup(root: protobuf.Root, name: string): DynType {
-  return root.lookupType(`locktime.rpc.${name}`)
-}
+  process.platform === 'win32' ? '\\\\.\\pipe\\locktime-svc' : '/tmp/locktime-svc.sock'
 
 // ─── Client class ─────────────────────────────────────────────────────────────
 
@@ -65,14 +28,17 @@ const SVC = 'locktime.rpc.LockTimeService'
 
 export class LockTimeRPCClient {
   private client: IBridgerClient
-  private root: protobuf.Root | null = null
 
   constructor(endpoint: string = RPC_ENDPOINT) {
     this.client = new IBridgerClient(
       { endpoint },
-      { baseDelayMs: 200, maxDelayMs: 10_000, maxAttempts: Infinity,
-        onReconnect: () => log.info('RPC client reconnected') },
-    );
+      {
+        baseDelayMs: 200,
+        maxDelayMs: 10_000,
+        maxAttempts: Infinity,
+        onReconnect: () => log.info('RPC client reconnected'),
+      },
+    )
     this.client.onDisconnect = () => {
       log.warn('RPC client disconnected — will reconnect automatically')
     }
@@ -80,7 +46,6 @@ export class LockTimeRPCClient {
   }
 
   async connect(): Promise<void> {
-    this.root = await getRoot()
     await this.client.connect()
   }
 
@@ -93,172 +58,177 @@ export class LockTimeRPCClient {
   }
 
   // ─── Internal helper ─────────────────────────────────────────────────────
-
-  private async call<T extends object>(
+  // ReqClass / RespClass are generated static protobufjs classes.
+  // They expose verify(), create(), encode(), decode() as static methods.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async call<Resp>(
     method: string,
-    reqTypeName: string,
-    respTypeName: string,
+    ReqClass: any,
+    RespClass: any,
     request: object,
-  ): Promise<T> {
-    if (!this.root) throw new Error('RPC client not connected')
-    const reqType = lookup(this.root, reqTypeName)
-    const respType = lookup(this.root, respTypeName)
-
-    // Validate and encode request
-    const errMsg = reqType.verify(request)
-    if (errMsg) throw new Error(`Invalid ${reqTypeName}: ${errMsg}`)
-    const reqMsg = reqType.create(request)
-
+  ): Promise<Resp> {
+    const errMsg = ReqClass.verify(request) as string | null
+    if (errMsg) throw new Error(`Invalid request for ${method}: ${errMsg}`)
+    const reqMsg = ReqClass.create(request)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const respMsg = await this.client.call(SVC, method, reqMsg, reqType as any, respType as any)
-
-    return respMsg as unknown as T
+    const respMsg = await this.client.call(SVC, method, reqMsg, ReqClass, RespClass)
+    return respMsg as Resp
   }
 
   // ─── Status ──────────────────────────────────────────────────────────────
 
   getStatus() {
-    return this.call<GetStatusResponse>('GetStatus', 'GetStatusRequest', 'GetStatusResponse', {})
+    return this.call<pb.locktime.rpc.IGetStatusResponse>(
+      'GetStatus',
+      pb.locktime.rpc.GetStatusRequest,
+      pb.locktime.rpc.GetStatusResponse,
+      {},
+    )
   }
 
   // ─── Rules ───────────────────────────────────────────────────────────────
 
   listRules() {
-    return this.call<ListRulesResponse>('ListRules', 'ListRulesRequest', 'ListRulesResponse', {})
+    return this.call<pb.locktime.rpc.IListRulesResponse>(
+      'ListRules',
+      pb.locktime.rpc.ListRulesRequest,
+      pb.locktime.rpc.ListRulesResponse,
+      {},
+    )
   }
 
   getRule(id: string) {
-    return this.call<GetRuleResponse>('GetRule', 'GetRuleRequest', 'GetRuleResponse', { id })
+    return this.call<pb.locktime.rpc.IGetRuleResponse>(
+      'GetRule',
+      pb.locktime.rpc.GetRuleRequest,
+      pb.locktime.rpc.GetRuleResponse,
+      { id },
+    )
   }
 
-  createRule(req: CreateRuleRequest) {
-    return this.call<CreateRuleResponse>('CreateRule', 'CreateRuleRequest', 'CreateRuleResponse', req)
+  createRule(req: pb.locktime.rpc.ICreateRuleRequest) {
+    return this.call<pb.locktime.rpc.ICreateRuleResponse>(
+      'CreateRule',
+      pb.locktime.rpc.CreateRuleRequest,
+      pb.locktime.rpc.CreateRuleResponse,
+      req,
+    )
   }
 
-  updateRule(req: UpdateRuleRequest) {
-    return this.call<UpdateRuleResponse>('UpdateRule', 'UpdateRuleRequest', 'UpdateRuleResponse', req)
+  updateRule(req: pb.locktime.rpc.IUpdateRuleRequest) {
+    return this.call<pb.locktime.rpc.IUpdateRuleResponse>(
+      'UpdateRule',
+      pb.locktime.rpc.UpdateRuleRequest,
+      pb.locktime.rpc.UpdateRuleResponse,
+      req,
+    )
   }
 
-  patchRule(req: PatchRuleRequest) {
+  patchRule(req: pb.locktime.rpc.IPatchRuleRequest) {
     console.log('Patching rule:', req)
-    return this.call<PatchRuleResponse>('PatchRule', 'PatchRuleRequest', 'PatchRuleResponse', req)
+    return this.call<pb.locktime.rpc.IPatchRuleResponse>(
+      'PatchRule',
+      pb.locktime.rpc.PatchRuleRequest,
+      pb.locktime.rpc.PatchRuleResponse,
+      req,
+    )
   }
 
   deleteRule(id: string) {
-    return this.call<DeleteRuleResponse>('DeleteRule', 'DeleteRuleRequest', 'DeleteRuleResponse', { id })
+    return this.call<pb.locktime.rpc.IDeleteRuleResponse>(
+      'DeleteRule',
+      pb.locktime.rpc.DeleteRuleRequest,
+      pb.locktime.rpc.DeleteRuleResponse,
+      { id },
+    )
   }
 
   // ─── Overrides ───────────────────────────────────────────────────────────
 
-  grantOverride(req: GrantOverrideRequest) {
-    return this.call<GrantOverrideResponse>('GrantOverride', 'GrantOverrideRequest', 'GrantOverrideResponse', req)
+  grantOverride(req: pb.locktime.rpc.IGrantOverrideRequest) {
+    return this.call<pb.locktime.rpc.IGrantOverrideResponse>(
+      'GrantOverride',
+      pb.locktime.rpc.GrantOverrideRequest,
+      pb.locktime.rpc.GrantOverrideResponse,
+      req,
+    )
   }
 
   revokeOverride(ruleId: string) {
-    return this.call<RevokeOverrideResponse>('RevokeOverride', 'RevokeOverrideRequest', 'RevokeOverrideResponse', {
-      rule_id: ruleId,
-    })
+    return this.call<pb.locktime.rpc.IRevokeOverrideResponse>(
+      'RevokeOverride',
+      pb.locktime.rpc.RevokeOverrideRequest,
+      pb.locktime.rpc.RevokeOverrideResponse,
+      { rule_id: ruleId },
+    )
   }
 
   // ─── Usage ───────────────────────────────────────────────────────────────
 
   getUsageToday() {
-    return this.call<GetUsageTodayResponse>(
-      'GetUsageToday', 'GetUsageTodayRequest', 'GetUsageTodayResponse', {}
+    return this.call<pb.locktime.rpc.IGetUsageTodayResponse>(
+      'GetUsageToday',
+      pb.locktime.rpc.GetUsageTodayRequest,
+      pb.locktime.rpc.GetUsageTodayResponse,
+      {},
     )
   }
 
   getUsageWeek() {
-    return this.call<GetUsageWeekResponse>(
-      'GetUsageWeek', 'GetUsageWeekRequest', 'GetUsageWeekResponse', {}
+    return this.call<pb.locktime.rpc.IGetUsageWeekResponse>(
+      'GetUsageWeek',
+      pb.locktime.rpc.GetUsageWeekRequest,
+      pb.locktime.rpc.GetUsageWeekResponse,
+      {},
     )
   }
 
-  getBlockAttempts(req: GetBlockAttemptsRequest = {}) {
-    return this.call<GetBlockAttemptsResponse>(
-      'GetBlockAttempts', 'GetBlockAttemptsRequest', 'GetBlockAttemptsResponse', req
+  getBlockAttempts(req: pb.locktime.rpc.IGetBlockAttemptsRequest = {}) {
+    return this.call<pb.locktime.rpc.IGetBlockAttemptsResponse>(
+      'GetBlockAttempts',
+      pb.locktime.rpc.GetBlockAttemptsRequest,
+      pb.locktime.rpc.GetBlockAttemptsResponse,
+      req,
     )
   }
 
   // ─── System ──────────────────────────────────────────────────────────────
 
   getProcesses() {
-    return this.call<GetProcessesResponse>(
-      'GetProcesses', 'GetProcessesRequest', 'GetProcessesResponse', {}
+    return this.call<pb.locktime.rpc.IGetProcessesResponse>(
+      'GetProcesses',
+      pb.locktime.rpc.GetProcessesRequest,
+      pb.locktime.rpc.GetProcessesResponse,
+      {},
     )
   }
 
   // ─── Config ──────────────────────────────────────────────────────────────
 
   getConfig() {
-    return this.call<GetConfigResponse>('GetConfig', 'GetConfigRequest', 'GetConfigResponse', {})
+    return this.call<pb.locktime.rpc.IGetConfigResponse>(
+      'GetConfig',
+      pb.locktime.rpc.GetConfigRequest,
+      pb.locktime.rpc.GetConfigResponse,
+      {},
+    )
   }
 
   updateConfig(config: Record<string, string>) {
-    return this.call<UpdateConfigResponse>(
-      'UpdateConfig', 'UpdateConfigRequest', 'UpdateConfigResponse', { config }
+    return this.call<pb.locktime.rpc.IUpdateConfigResponse>(
+      'UpdateConfig',
+      pb.locktime.rpc.UpdateConfigRequest,
+      pb.locktime.rpc.UpdateConfigResponse,
+      { config },
     )
   }
 }
 
-// ─── Request / Response Types (mirror locktime.proto) ─────────────────────────
-// These are plain object types used on the TypeScript side.
-// They map 1-to-1 with the proto message fields (snake_case).
+// ─── Type aliases re-exported for main.ts ────────────────────────────────────
+// Generated interfaces use camelCase (matching protobufjs static module output).
 
-export interface SchedulePayload {
-  days: number[]
-  allow_start: string
-  allow_end: string
-  warn_before_minutes: number
-}
-
-export interface CreateRuleRequest {
-  name: string
-  exe_name: string
-  exe_path?: string
-  match_mode: string
-  enabled?: boolean
-  daily_limit_minutes?: number
-  schedules?: SchedulePayload[]
-}
-
-export interface UpdateRuleRequest extends CreateRuleRequest {
-  id: string
-}
-
-export interface PatchRuleRequest {
-  id: string
-  hasEnabled?: boolean
-  enabled?: boolean
-  hasName?: boolean
-  name?: string
-}
-
-export interface GrantOverrideRequest {
-  rule_id: string
-  duration_minutes: number
-  reason?: string
-}
-
-export interface GetBlockAttemptsRequest {
-  range?: string
-  rule_id?: string
-  limit?: number
-}
-
-// Response types (subset — full shape comes from backend proto)
-export type GetStatusResponse      = Record<string, unknown>
-export type ListRulesResponse      = Record<string, unknown>
-export type GetRuleResponse        = Record<string, unknown>
-export type CreateRuleResponse     = Record<string, unknown>
-export type UpdateRuleResponse     = Record<string, unknown>
-export type PatchRuleResponse      = Record<string, unknown>
-export type DeleteRuleResponse     = Record<string, unknown>
-export type GrantOverrideResponse  = Record<string, unknown>
-export type RevokeOverrideResponse = Record<string, unknown>
-export type GetUsageTodayResponse  = Record<string, unknown>
-export type GetUsageWeekResponse   = Record<string, unknown>
-export type GetBlockAttemptsResponse = Record<string, unknown>
-export type GetProcessesResponse   = Record<string, unknown>
-export type GetConfigResponse      = Record<string, unknown>
-export type UpdateConfigResponse   = Record<string, unknown>
+export type CreateRuleRequest = pb.locktime.rpc.ICreateRuleRequest
+export type UpdateRuleRequest = pb.locktime.rpc.IUpdateRuleRequest
+export type PatchRuleRequest = pb.locktime.rpc.IPatchRuleRequest
+export type GrantOverrideRequest = pb.locktime.rpc.IGrantOverrideRequest
+export type GetBlockAttemptsRequest = pb.locktime.rpc.IGetBlockAttemptsRequest

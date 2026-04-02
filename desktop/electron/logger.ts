@@ -36,8 +36,8 @@ function write(level: 'info' | 'warn' | 'error' | 'debug', msg: string): void {
 }
 
 export const log = {
-  info:  (msg: string) => write('info', msg),
-  warn:  (msg: string) => write('warn', msg),
+  info: (msg: string) => write('info', msg),
+  warn: (msg: string) => write('warn', msg),
   error: (msg: string) => write('error', msg),
   debug: (msg: string) => write('debug', msg),
   flush: () => _logger?.flush(),

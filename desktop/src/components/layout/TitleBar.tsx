@@ -4,13 +4,15 @@ export function TitleBar() {
   return (
     <div
       className="flex items-center justify-between shrink-0 px-3"
-      style={{
-        height: 38,
-        background: 'var(--surface)',
-        borderBottom: '1px solid var(--border)',
-        // Make the whole bar draggable
-        WebkitAppRegion: 'drag' as React.CSSProperties['WebkitAppRegion'],
-      } as React.CSSProperties}
+      style={
+        {
+          height: 38,
+          background: 'var(--surface)',
+          borderBottom: '1px solid var(--border)',
+          // Make the whole bar draggable
+          WebkitAppRegion: 'drag' as React.CSSProperties['WebkitAppRegion'],
+        } as React.CSSProperties
+      }
     >
       {/* Spacer — branding lives in the Sidebar */}
       <div />
@@ -31,8 +33,8 @@ export function TitleBar() {
             border: 'none',
             cursor: 'pointer',
           }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
           title="Minimise"
         >
           <Minus style={{ width: 12, height: 12 }} />
@@ -49,11 +51,11 @@ export function TitleBar() {
             border: 'none',
             cursor: 'pointer',
           }}
-          onMouseEnter={e => {
+          onMouseEnter={(e) => {
             e.currentTarget.style.background = 'var(--red)'
             e.currentTarget.style.color = '#fff'
           }}
-          onMouseLeave={e => {
+          onMouseLeave={(e) => {
             e.currentTarget.style.background = 'transparent'
             e.currentTarget.style.color = 'var(--text-muted)'
           }}

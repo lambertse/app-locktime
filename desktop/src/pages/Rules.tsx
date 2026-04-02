@@ -70,15 +70,15 @@ export function Rules() {
   const serviceStatus = statusError ? 'unreachable' : (statusData?.service?.status ?? 'unknown')
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
-      patchRule(id, { enabled }),
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) => patchRule(id, { enabled }),
     onMutate: async ({ id, enabled }) => {
       // Optimistic update
       console.log(`Optimistically setting rule ${id} enabled=${enabled}`)
       await queryClient.cancelQueries({ queryKey: ['rules'] })
       const prev = queryClient.getQueryData<Rule[]>(['rules'])
-      queryClient.setQueryData<Rule[]>(['rules'], old =>
-        old?.map(r => r.id === id ? { ...r, enabled } : r) ?? []
+      queryClient.setQueryData<Rule[]>(
+        ['rules'],
+        (old) => old?.map((r) => (r.id === id ? { ...r, enabled } : r)) ?? [],
       )
       return { prev }
     },
@@ -121,9 +121,7 @@ export function Rules() {
       </div>
 
       <div className="flex-1 p-8">
-        {isLoading && (
-          <div className="text-center py-12 text-zinc-500">Loading rules...</div>
-        )}
+        {isLoading && <div className="text-center py-12 text-zinc-500">Loading rules...</div>}
 
         {!isLoading && rules.length === 0 && (
           <div className="text-center py-16">
@@ -141,13 +139,16 @@ export function Rules() {
 
         {rules.length > 0 && (
           <div className="flex flex-col gap-3">
-            {rules.map(rule => {
+            {rules.map((rule) => {
               const statusEntry = statusMap.get(rule.id)
               const ruleStatus: RuleStatus = statusEntry?.status ?? 'disabled'
               const blocks = schedulesToBlocks(rule.schedules)
-              const blockStr = blocks.length > 0
-                ? blocks.map(b => `${formatTime(b.block_start)} – ${formatTime(b.block_end)}`).join(', ')
-                : 'All day'
+              const blockStr =
+                blocks.length > 0
+                  ? blocks
+                      .map((b) => `${formatTime(b.block_start)} – ${formatTime(b.block_end)}`)
+                      .join(', ')
+                  : 'All day'
 
               return (
                 <div
@@ -156,11 +157,15 @@ export function Rules() {
                 >
                   {/* Status indicator dot */}
                   <div className="mt-1">
-                    <div className={`w-2.5 h-2.5 rounded-full ${
-                      ruleStatus === 'locked' ? 'bg-red-500' :
-                      ruleStatus === 'active' ? 'bg-green-500' :
-                      'bg-zinc-600'
-                    }`} />
+                    <div
+                      className={`w-2.5 h-2.5 rounded-full ${
+                        ruleStatus === 'locked'
+                          ? 'bg-red-500'
+                          : ruleStatus === 'active'
+                            ? 'bg-green-500'
+                            : 'bg-zinc-600'
+                      }`}
+                    />
                   </div>
 
                   {/* Content */}
@@ -171,9 +176,17 @@ export function Rules() {
                     </div>
                     <div className="text-xs text-zinc-500 font-mono mt-0.5">{rule.exe_name}</div>
                     <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-400">
-                      <span>Blocked: <span className="text-zinc-300">{blockStr}</span></span>
+                      <span>
+                        Blocked: <span className="text-zinc-300">{blockStr}</span>
+                      </span>
                       {rule.daily_limit_minutes && rule.daily_limit_minutes > 0 && (
-                        <span>Max: <span className="text-zinc-300">{Math.floor(rule.daily_limit_minutes / 60)}h {rule.daily_limit_minutes % 60}m/day</span></span>
+                        <span>
+                          Max:{' '}
+                          <span className="text-zinc-300">
+                            {Math.floor(rule.daily_limit_minutes / 60)}h{' '}
+                            {rule.daily_limit_minutes % 60}m/day
+                          </span>
+                        </span>
                       )}
                       {statusEntry?.currently_running && (
                         <span className="text-green-400">● Running (PID {statusEntry.pid})</span>
@@ -237,7 +250,8 @@ export function Rules() {
                 <h3 className="font-semibold text-zinc-100">Delete Rule?</h3>
               </div>
               <p className="text-sm text-zinc-400 mb-5">
-                This will permanently delete the rule and all its schedules. This action cannot be undone.
+                This will permanently delete the rule and all its schedules. This action cannot be
+                undone.
               </p>
               <div className="flex gap-3 justify-end">
                 <button

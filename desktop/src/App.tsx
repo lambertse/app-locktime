@@ -27,16 +27,16 @@ function AppShell() {
       <div className="flex flex-col h-screen" style={{ background: 'var(--background)' }}>
         <TitleBar />
         <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-auto">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/rules" element={<Rules />} />
-            <Route path="/rules/new" element={<AddRule />} />
-            <Route path="/rules/:id/edit" element={<EditRule />} />
-            <Route path="/stats" element={<Stats />} />
-          </Routes>
-        </main>
+          <Sidebar />
+          <main className="flex-1 overflow-auto">
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/rules" element={<Rules />} />
+              <Route path="/rules/new" element={<AddRule />} />
+              <Route path="/rules/:id/edit" element={<EditRule />} />
+              <Route path="/stats" element={<Stats />} />
+            </Routes>
+          </main>
         </div>
       </div>
       <Toaster

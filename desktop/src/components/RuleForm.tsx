@@ -62,16 +62,13 @@ function defaultFormData(rule?: Rule): RuleFormData {
   const hasSchedules = rule.schedules.length > 0
   const hasLimit = !!rule.daily_limit_minutes && rule.daily_limit_minutes > 0
 
-  const mode =
-    hasSchedules && hasLimit ? 'both' :
-    hasLimit ? 'daily_limit' :
-    'time_window'
+  const mode = hasSchedules && hasLimit ? 'both' : hasLimit ? 'daily_limit' : 'time_window'
 
   const totalMins = rule.daily_limit_minutes ?? 0
   return {
     name: rule.name,
     exe_name: rule.exe_name,
-    exe_path: rule.exe_path ?? '',   // null guard for nullable exe_path
+    exe_path: rule.exe_path ?? '', // null guard for nullable exe_path
     match_mode: rule.match_mode,
     enabled: rule.enabled,
     mode,
@@ -82,13 +79,10 @@ function defaultFormData(rule?: Rule): RuleFormData {
 }
 
 export function buildPayload(form: RuleFormData): RulePayload {
-  const schedules =
-    form.mode === 'daily_limit' ? [] : blocksToSchedules(form.blockWindows)
+  const schedules = form.mode === 'daily_limit' ? [] : blocksToSchedules(form.blockWindows)
 
   const daily_limit_minutes =
-    form.mode === 'time_window'
-      ? 0
-      : form.daily_limit_hours * 60 + form.daily_limit_mins
+    form.mode === 'time_window' ? 0 : form.daily_limit_hours * 60 + form.daily_limit_mins
 
   return {
     name: form.name,
@@ -101,31 +95,35 @@ export function buildPayload(form: RuleFormData): RulePayload {
   }
 }
 
-export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save Rule', isSubmitting }: RuleFormProps) {
+export function RuleForm({
+  initialRule,
+  onSubmit,
+  onCancel,
+  submitLabel = 'Save Rule',
+  isSubmitting,
+}: RuleFormProps) {
   const [step, setStep] = useState(1)
   const [form, setForm] = useState<RuleFormData>(() => defaultFormData(initialRule))
   const [isBrowsing, setIsBrowsing] = useState(false)
 
-  const update = (patch: Partial<RuleFormData>) => setForm(prev => ({ ...prev, ...patch }))
+  const update = (patch: Partial<RuleFormData>) => setForm((prev) => ({ ...prev, ...patch }))
 
   const updateBlockWindow = (index: number, patch: Partial<BlockWindow>) => {
-    setForm(prev => {
-      const updated = prev.blockWindows.map((bw, i) =>
-        i === index ? { ...bw, ...patch } : bw
-      )
+    setForm((prev) => {
+      const updated = prev.blockWindows.map((bw, i) => (i === index ? { ...bw, ...patch } : bw))
       return { ...prev, blockWindows: updated }
     })
   }
 
   const addBlockWindow = () => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
       blockWindows: [...prev.blockWindows, { ...DEFAULT_BLOCK_WINDOW }],
     }))
   }
 
   const removeBlockWindow = (index: number) => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
       blockWindows: prev.blockWindows.filter((_, i) => i !== index),
     }))
@@ -147,8 +145,7 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
     }
   }
 
-  const canProceed =
-    form.exe_name.trim().length > 0 && form.name.trim().length > 0
+  const canProceed = form.exe_name.trim().length > 0 && form.name.trim().length > 0
 
   const handleSubmit = async () => {
     const payload = buildPayload(form)
@@ -159,18 +156,22 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
     <div className="flex flex-col gap-6">
       {/* Step indicator */}
       <div className="flex items-center gap-3">
-        {[1, 2].map(s => (
+        {[1, 2].map((s) => (
           <div key={s} className="flex items-center gap-2">
-            <div className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center ${
-              step === s
-                ? 'bg-cyan-500 text-zinc-900'
-                : s < step
-                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                : 'bg-zinc-800 text-zinc-500 border border-zinc-700'
-            }`}>
+            <div
+              className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center ${
+                step === s
+                  ? 'bg-cyan-500 text-zinc-900'
+                  : s < step
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                    : 'bg-zinc-800 text-zinc-500 border border-zinc-700'
+              }`}
+            >
               {s}
             </div>
-            <span className={`text-sm ${step === s ? 'text-zinc-100 font-medium' : 'text-zinc-500'}`}>
+            <span
+              className={`text-sm ${step === s ? 'text-zinc-100 font-medium' : 'text-zinc-500'}`}
+            >
               {s === 1 ? 'Choose Application' : 'Configure Limits'}
             </span>
             {s < 2 && <span className="text-zinc-700">→</span>}
@@ -187,7 +188,7 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
               type="text"
               placeholder="e.g. League of Legends"
               value={form.name}
-              onChange={e => update({ name: e.target.value })}
+              onChange={(e) => update({ name: e.target.value })}
               maxLength={50}
               className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30"
             />
@@ -195,14 +196,18 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
 
           {/* Process picker */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-zinc-300">Choose from running processes</label>
+            <label className="text-sm font-medium text-zinc-300">
+              Choose from running processes
+            </label>
             <ProcessPicker
               selectedName={form.exe_name}
-              onSelect={proc => update({
-                exe_name: proc.name,
-                exe_path: proc.full_path,
-                match_mode: 'path',
-              })}
+              onSelect={(proc) =>
+                update({
+                  exe_name: proc.name,
+                  exe_path: proc.full_path,
+                  match_mode: 'path',
+                })
+              }
             />
           </div>
 
@@ -214,7 +219,7 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
                 type="text"
                 placeholder="e.g. LeagueOfLegends.exe or C:\...\game.exe"
                 value={form.exe_path || form.exe_name}
-                onChange={e => {
+                onChange={(e) => {
                   const val = e.target.value
                   const isFullPath = val.includes('\\') || val.includes('/')
                   if (isFullPath) {
@@ -232,7 +237,11 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
                 disabled={isBrowsing}
                 className="px-3 py-2 border border-zinc-700 rounded text-sm text-zinc-300 hover:text-zinc-100 hover:border-zinc-500 transition-colors flex items-center gap-1.5"
               >
-                {isBrowsing ? <Loader2 className="w-4 h-4 animate-spin" /> : <FolderOpen className="w-4 h-4" />}
+                {isBrowsing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FolderOpen className="w-4 h-4" />
+                )}
                 Browse
               </button>
             </div>
@@ -242,7 +251,9 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
             <div className="flex items-center gap-2 text-xs text-zinc-400 bg-zinc-800/50 rounded p-2.5">
               <span className="text-zinc-500">Selected:</span>
               <span className="font-mono text-zinc-200">{form.exe_name}</span>
-              <span className="text-zinc-600">({form.match_mode === 'path' ? 'full path match' : 'name match'})</span>
+              <span className="text-zinc-600">
+                ({form.match_mode === 'path' ? 'full path match' : 'name match'})
+              </span>
             </div>
           )}
 
@@ -269,14 +280,15 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
       {step === 2 && (
         <div className="flex flex-col gap-5">
           <div className="text-sm text-zinc-400">
-            Configuring: <span className="text-zinc-100 font-mono font-medium">{form.exe_name}</span>
+            Configuring:{' '}
+            <span className="text-zinc-100 font-mono font-medium">{form.exe_name}</span>
           </div>
 
           {/* Mode selector */}
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-zinc-300">Blocking Mode</label>
             <div className="flex flex-col gap-1.5">
-              {(['time_window', 'daily_limit', 'both'] as const).map(mode => (
+              {(['time_window', 'daily_limit', 'both'] as const).map((mode) => (
                 <label key={mode} className="flex items-start gap-2.5 cursor-pointer group">
                   <input
                     type="radio"
@@ -288,12 +300,18 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
                   />
                   <div>
                     <div className="text-sm text-zinc-200">
-                      {mode === 'time_window' ? 'Time Window' : mode === 'daily_limit' ? 'Daily Limit' : 'Both'}
+                      {mode === 'time_window'
+                        ? 'Time Window'
+                        : mode === 'daily_limit'
+                          ? 'Daily Limit'
+                          : 'Both'}
                     </div>
                     <div className="text-xs text-zinc-500">
-                      {mode === 'time_window' ? 'Blocked during certain hours of the day' :
-                       mode === 'daily_limit' ? 'Maximum playtime per day' :
-                       'Time window restriction AND daily limit'}
+                      {mode === 'time_window'
+                        ? 'Blocked during certain hours of the day'
+                        : mode === 'daily_limit'
+                          ? 'Maximum playtime per day'
+                          : 'Time window restriction AND daily limit'}
                     </div>
                   </div>
                 </label>
@@ -309,7 +327,10 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
               {form.blockWindows.map((bw, index) => {
                 const midnight = crossesMidnight(bw)
                 return (
-                  <div key={index} className="flex flex-col gap-3 p-4 rounded-lg bg-zinc-900 border border-zinc-800">
+                  <div
+                    key={index}
+                    className="flex flex-col gap-3 p-4 rounded-lg bg-zinc-900 border border-zinc-800"
+                  >
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">
                         Window {index + 1}
@@ -332,7 +353,9 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
                         <input
                           type="time"
                           value={bw.block_start}
-                          onChange={e => updateBlockWindow(index, { block_start: e.target.value })}
+                          onChange={(e) =>
+                            updateBlockWindow(index, { block_start: e.target.value })
+                          }
                           className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 font-mono focus:outline-none focus:border-cyan-500/60"
                         />
                       </div>
@@ -342,7 +365,7 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
                         <input
                           type="time"
                           value={bw.block_end}
-                          onChange={e => updateBlockWindow(index, { block_end: e.target.value })}
+                          onChange={(e) => updateBlockWindow(index, { block_end: e.target.value })}
                           className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 font-mono focus:outline-none focus:border-cyan-500/60"
                         />
                       </div>
@@ -355,18 +378,22 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
                       <label className="text-xs text-zinc-500">Active on days</label>
                       <DayPicker
                         value={bw.days}
-                        onChange={days => updateBlockWindow(index, { days })}
+                        onChange={(days) => updateBlockWindow(index, { days })}
                       />
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <label className="text-xs text-zinc-500 shrink-0">Warn before lock (min)</label>
+                      <label className="text-xs text-zinc-500 shrink-0">
+                        Warn before lock (min)
+                      </label>
                       <input
                         type="number"
                         min="0"
                         max="60"
                         value={bw.warn_before_minutes}
-                        onChange={e => updateBlockWindow(index, { warn_before_minutes: Number(e.target.value) })}
+                        onChange={(e) =>
+                          updateBlockWindow(index, { warn_before_minutes: Number(e.target.value) })
+                        }
                         className="w-20 px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 font-mono focus:outline-none focus:border-cyan-500/60"
                       />
                       <span className="text-xs text-zinc-600">(0 = no warning)</span>
@@ -396,7 +423,7 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
                   min="0"
                   max="23"
                   value={form.daily_limit_hours}
-                  onChange={e => update({ daily_limit_hours: Number(e.target.value) })}
+                  onChange={(e) => update({ daily_limit_hours: Number(e.target.value) })}
                   className="w-16 px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 font-mono focus:outline-none focus:border-cyan-500/60"
                 />
                 <span className="text-xs text-zinc-400">hrs</span>
@@ -405,7 +432,7 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
                   min="0"
                   max="59"
                   value={form.daily_limit_mins}
-                  onChange={e => update({ daily_limit_mins: Number(e.target.value) })}
+                  onChange={(e) => update({ daily_limit_mins: Number(e.target.value) })}
                   className="w-16 px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 font-mono focus:outline-none focus:border-cyan-500/60"
                 />
                 <span className="text-xs text-zinc-400">min per day</span>
@@ -441,9 +468,13 @@ export function RuleForm({ initialRule, onSubmit, onCancel, submitLabel = 'Save 
               className="px-4 py-2 text-sm bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-900 rounded font-semibold transition-colors flex items-center gap-2"
             >
               {isSubmitting ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                </>
               ) : (
-                <><Save className="w-4 h-4" /> {submitLabel}</>
+                <>
+                  <Save className="w-4 h-4" /> {submitLabel}
+                </>
               )}
             </button>
           </div>

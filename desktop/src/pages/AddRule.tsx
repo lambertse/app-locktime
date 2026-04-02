@@ -32,7 +32,9 @@ export function AddRule() {
 
       <div className="flex-1 p-8 max-w-2xl">
         <RuleForm
-          onSubmit={async (payload) => { await mutation.mutateAsync(payload) }}
+          onSubmit={async (payload) => {
+            await mutation.mutateAsync(payload)
+          }}
           onCancel={() => navigate('/rules')}
           submitLabel="Create Rule"
           isSubmitting={mutation.isPending}

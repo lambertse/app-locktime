@@ -51,7 +51,7 @@ export function Sidebar() {
             Navigation
           </span>
         </div>
-        {navItems.map(item => (
+        {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
@@ -59,7 +59,7 @@ export function Sidebar() {
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-2.5 px-3 py-2 rounded text-sm font-medium transition-colors',
-                isActive ? 'nav-item-active' : 'nav-item-inactive'
+                isActive ? 'nav-item-active' : 'nav-item-inactive',
               )
             }
             style={({ isActive }) =>

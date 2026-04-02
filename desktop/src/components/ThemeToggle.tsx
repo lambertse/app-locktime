@@ -41,7 +41,8 @@ export function ThemeToggle() {
             boxShadow: isDark
               ? '0 0 8px rgba(138, 235, 255, 0.45)'
               : '0 0 6px rgba(184, 115, 51, 0.35)',
-            transition: 'left 0.25s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, box-shadow 0.3s ease',
+            transition:
+              'left 0.25s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, box-shadow 0.3s ease',
           }}
         >
           {isDark ? (

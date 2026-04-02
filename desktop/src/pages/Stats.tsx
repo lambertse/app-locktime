@@ -1,7 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
-} from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { format, parseISO } from 'date-fns'
 import { BarChart2, Shield, AlertOctagon, Loader2 } from 'lucide-react'
 import { getUsageToday, getUsageWeek, getUsageAttempts } from '../api/client'
@@ -54,7 +52,7 @@ export function Stats() {
   })
 
   // Build Recharts data from by_day[]
-  const chartData = (weekData?.by_day ?? []).map(day => {
+  const chartData = (weekData?.by_day ?? []).map((day) => {
     const entry: Record<string, string | number> = {
       date: format(parseISO(day.date), 'EEE'),
       total: day.total_minutes,
@@ -67,7 +65,7 @@ export function Stats() {
 
   // Collect unique rule names for stacked bars
   const ruleNames = Array.from(
-    new Set((weekData?.by_day ?? []).flatMap(d => d.rules.map(r => r.rule_name)))
+    new Set((weekData?.by_day ?? []).flatMap((d) => d.rules.map((r) => r.rule_name))),
   )
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -95,7 +93,6 @@ export function Stats() {
       </div>
 
       <div className="flex-1 p-8 flex flex-col gap-8">
-
         {/* TODAY'S USAGE */}
         <section>
           <div className="flex items-center gap-2 mb-4">
@@ -114,7 +111,7 @@ export function Stats() {
             {!todayLoading && (!todayData || todayData.usage.length === 0) && (
               <p className="text-sm text-zinc-500 text-center py-6">No usage recorded today</p>
             )}
-            {todayData?.usage.map(entry => (
+            {todayData?.usage.map((entry) => (
               <div key={entry.rule_id} className="flex flex-col gap-2 mb-4 last:mb-0">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-zinc-200">{entry.rule_name}</span>
@@ -202,7 +199,9 @@ export function Stats() {
                         />
                         <span className="text-zinc-300">{r.rule_name}</span>
                       </div>
-                      <span className="font-mono text-zinc-400">{formatMinutes(r.total_minutes)} this week</span>
+                      <span className="font-mono text-zinc-400">
+                        {formatMinutes(r.total_minutes)} this week
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -215,7 +214,9 @@ export function Stats() {
         <section>
           <div className="flex items-center gap-2 mb-4">
             <Shield className="w-4 h-4 text-red-400" />
-            <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wider">Blocked Attempts</h2>
+            <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wider">
+              Blocked Attempts
+            </h2>
             {attemptsData && attemptsData.total > 0 && (
               <span className="bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold px-2 py-0.5 rounded animate-pulse">
                 {attemptsData.total}
@@ -234,12 +235,14 @@ export function Stats() {
             )}
             {attemptsData && attemptsData.attempts.length > 0 && (
               <div className="flex flex-col divide-y divide-zinc-800">
-                {attemptsData.attempts.map(attempt => (
+                {attemptsData.attempts.map((attempt) => (
                   <div key={attempt.id} className="py-2.5 flex items-center gap-3">
                     <AlertOctagon className="w-4 h-4 text-red-400 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm text-zinc-200 font-medium">
-                        {attempt.rule_name ?? <span className="text-zinc-500 italic">Unknown rule</span>}
+                        {attempt.rule_name ?? (
+                          <span className="text-zinc-500 italic">Unknown rule</span>
+                        )}
                       </div>
                       <div className="text-xs text-zinc-500 font-mono truncate">
                         {attempt.exe_path ?? <span className="text-zinc-600 italic">—</span>}
@@ -259,7 +262,6 @@ export function Stats() {
             )}
           </div>
         </section>
-
       </div>
     </div>
   )

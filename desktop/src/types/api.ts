@@ -5,13 +5,13 @@ export interface Schedule {
   id: string
   rule_id: string
   allow_start: string // "HH:MM" 24h
-  allow_end: string   // "HH:MM" 24h
-  days: number[]      // 0=Sunday, 1=Monday, ..., 6=Saturday
+  allow_end: string // "HH:MM" 24h
+  days: number[] // 0=Sunday, 1=Monday, ..., 6=Saturday
   warn_before_minutes: number
 }
 
 export interface Rule {
-  id: string            // UUID
+  id: string // UUID
   name: string
   exe_name: string
   exe_path: string | null

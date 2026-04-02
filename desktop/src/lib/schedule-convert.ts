@@ -6,8 +6,8 @@ import type { Schedule, SchedulePayload } from '../types/api'
  */
 export interface BlockWindow {
   block_start: string // "HH:MM" — start of blocked period (what user sees)
-  block_end: string   // "HH:MM" — end of blocked period
-  days: number[]      // 0=Sunday, 6=Saturday
+  block_end: string // "HH:MM" — end of blocked period
+  days: number[] // 0=Sunday, 6=Saturday
   warn_before_minutes: number
 }
 
@@ -16,9 +16,9 @@ export interface BlockWindow {
  * "Allowed 08:00–22:00" → "Blocked 22:00–08:00"
  */
 export function schedulesToBlocks(schedules: Schedule[]): BlockWindow[] {
-  return schedules.map(s => ({
-    block_start: s.allow_end,   // end of allow = start of block
-    block_end: s.allow_start,   // start of allow = end of block
+  return schedules.map((s) => ({
+    block_start: s.allow_end, // end of allow = start of block
+    block_end: s.allow_start, // start of allow = end of block
     days: s.days,
     warn_before_minutes: s.warn_before_minutes,
   }))
@@ -29,9 +29,9 @@ export function schedulesToBlocks(schedules: Schedule[]): BlockWindow[] {
  * "Blocked 22:00–08:00" → allow_start="08:00", allow_end="22:00"
  */
 export function blocksToSchedules(blocks: BlockWindow[]): Omit<SchedulePayload, never>[] {
-  return blocks.map(b => ({
-    allow_start: b.block_end,   // end of block = start of allow
-    allow_end: b.block_start,   // start of block = end of allow
+  return blocks.map((b) => ({
+    allow_start: b.block_end, // end of block = start of allow
+    allow_end: b.block_start, // start of block = end of allow
     days: b.days,
     warn_before_minutes: b.warn_before_minutes,
   }))

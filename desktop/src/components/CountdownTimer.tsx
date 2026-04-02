@@ -23,7 +23,12 @@ function formatCountdown(targetIso: string): string {
   return `${hours}h ${minutes}m`
 }
 
-export function CountdownTimer({ targetIso, prefix = '', suffix = '', className }: CountdownTimerProps) {
+export function CountdownTimer({
+  targetIso,
+  prefix = '',
+  suffix = '',
+  className,
+}: CountdownTimerProps) {
   const [display, setDisplay] = useState<string>('')
 
   useEffect(() => {
@@ -43,7 +48,9 @@ export function CountdownTimer({ targetIso, prefix = '', suffix = '', className 
 
   return (
     <span className={className}>
-      {prefix}{display}{suffix}
+      {prefix}
+      {display}
+      {suffix}
     </span>
   )
 }

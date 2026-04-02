@@ -28,7 +28,7 @@ export function RuleStatusBadge({ status, className }: RuleStatusBadgeProps) {
       className={cn(
         'inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold tracking-wider font-mono',
         config.className,
-        className
+        className,
       )}
     >
       {config.label}

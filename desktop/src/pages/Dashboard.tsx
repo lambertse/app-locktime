@@ -25,8 +25,8 @@ export function Dashboard() {
 
   const serviceStatus = statusError ? 'unreachable' : (statusData?.service?.status ?? 'unknown')
   const rules = statusData?.rules ?? []
-  const lockedRules = rules.filter(r => r.status === 'locked')
-  const activeRules = rules.filter(r => r.status === 'active' && r.next_lock_at)
+  const lockedRules = rules.filter((r) => r.status === 'locked')
+  const activeRules = rules.filter((r) => r.status === 'active' && r.next_lock_at)
 
   const today = format(new Date(), 'EEE d MMM')
   const time = format(new Date(), 'HH:mm')
@@ -52,7 +52,9 @@ export function Dashboard() {
         <div className="rounded-lg border border-zinc-800 bg-[#18181b] p-5">
           <div className="flex items-center gap-2 mb-4">
             <Lock className="w-4 h-4 text-red-400" />
-            <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wider">Currently Active Locks</h2>
+            <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wider">
+              Currently Active Locks
+            </h2>
             {lockedRules.length > 0 && (
               <span className="ml-auto bg-red-500/20 text-red-400 text-xs font-bold px-2 py-0.5 rounded border border-red-500/30 animate-pulse">
                 {lockedRules.length}
@@ -68,7 +70,7 @@ export function Dashboard() {
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {lockedRules.map(rule => (
+              {lockedRules.map((rule) => (
                 <div
                   key={rule.rule_id}
                   className="flex items-center gap-3 p-3 rounded bg-red-500/5 border border-red-500/10"
@@ -100,7 +102,9 @@ export function Dashboard() {
         <div className="rounded-lg border border-zinc-800 bg-[#18181b] p-5">
           <div className="flex items-center gap-2 mb-4">
             <Activity className="w-4 h-4 text-cyan-400" />
-            <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wider">Today's Usage</h2>
+            <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wider">
+              Today's Usage
+            </h2>
           </div>
 
           {!usageData || usageData.usage.length === 0 ? (
@@ -109,7 +113,7 @@ export function Dashboard() {
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {usageData.usage.map(entry => (
+              {usageData.usage.map((entry) => (
                 <div key={entry.rule_id} className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-zinc-200">{entry.rule_name}</span>
@@ -131,17 +135,19 @@ export function Dashboard() {
         <div className="rounded-lg border border-zinc-800 bg-[#18181b] p-5">
           <div className="flex items-center gap-2 mb-4">
             <Clock className="w-4 h-4 text-amber-400" />
-            <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wider">Upcoming Lock Events</h2>
+            <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wider">
+              Upcoming Lock Events
+            </h2>
           </div>
 
-          {activeRules.length === 0 && lockedRules.filter(r => r.next_unlock_at).length === 0 ? (
+          {activeRules.length === 0 && lockedRules.filter((r) => r.next_unlock_at).length === 0 ? (
             <div className="py-6 text-center">
               <p className="text-sm text-zinc-500">No upcoming lock events</p>
             </div>
           ) : (
             <div className="flex flex-col divide-y divide-zinc-800">
               {/* Active rules with upcoming locks */}
-              {activeRules.map(rule => (
+              {activeRules.map((rule) => (
                 <div key={rule.rule_id} className="py-2.5 flex items-center justify-between">
                   <div>
                     <span className="text-sm text-zinc-200">{rule.rule_name}</span>
@@ -161,25 +167,27 @@ export function Dashboard() {
                 </div>
               ))}
               {/* Locked rules with unlock times */}
-              {lockedRules.filter(r => r.next_unlock_at).map(rule => (
-                <div key={rule.rule_id} className="py-2.5 flex items-center justify-between">
-                  <div>
-                    <span className="text-sm text-zinc-200">{rule.rule_name}</span>
-                    <div className="text-xs text-zinc-500 font-mono">{rule.exe_name}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-green-400 font-medium">
-                      Unlocks in{' '}
-                      <CountdownTimer targetIso={rule.next_unlock_at} className="font-semibold" />
+              {lockedRules
+                .filter((r) => r.next_unlock_at)
+                .map((rule) => (
+                  <div key={rule.rule_id} className="py-2.5 flex items-center justify-between">
+                    <div>
+                      <span className="text-sm text-zinc-200">{rule.rule_name}</span>
+                      <div className="text-xs text-zinc-500 font-mono">{rule.exe_name}</div>
                     </div>
-                    {rule.next_unlock_at && (
-                      <div className="text-xs text-zinc-500 font-mono">
-                        at {format(new Date(rule.next_unlock_at), 'HH:mm')}
+                    <div className="text-right">
+                      <div className="text-xs text-green-400 font-medium">
+                        Unlocks in{' '}
+                        <CountdownTimer targetIso={rule.next_unlock_at} className="font-semibold" />
                       </div>
-                    )}
+                      {rule.next_unlock_at && (
+                        <div className="text-xs text-zinc-500 font-mono">
+                          at {format(new Date(rule.next_unlock_at), 'HH:mm')}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           )}
         </div>
@@ -190,7 +198,10 @@ export function Dashboard() {
             <AlertCircle className="w-3.5 h-3.5" />
             <span>Service v{statusData.service.version}</span>
             <span>·</span>
-            <span>Uptime: {Math.floor(statusData.service.uptime_seconds / 3600)}h {Math.floor((statusData.service.uptime_seconds % 3600) / 60)}m</span>
+            <span>
+              Uptime: {Math.floor(statusData.service.uptime_seconds / 3600)}h{' '}
+              {Math.floor((statusData.service.uptime_seconds % 3600) / 60)}m
+            </span>
             {statusData.service.time_synced && (
               <>
                 <span>·</span>
@@ -198,7 +209,9 @@ export function Dashboard() {
               </>
             )}
             <span>·</span>
-            <span>{rules.length} rule{rules.length !== 1 ? 's' : ''} total</span>
+            <span>
+              {rules.length} rule{rules.length !== 1 ? 's' : ''} total
+            </span>
           </div>
         )}
       </div>

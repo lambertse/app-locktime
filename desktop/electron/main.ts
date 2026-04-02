@@ -1,13 +1,4 @@
-import {
-  app,
-  BrowserWindow,
-  Tray,
-  Menu,
-  nativeImage,
-  ipcMain,
-  session,
-  dialog,
-} from 'electron'
+import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, session, dialog } from 'electron'
 
 Menu.setApplicationMenu(null)
 
@@ -33,8 +24,8 @@ let isQuitting = false
 const rpc = new LockTimeRPCClient(RPC_ENDPOINT)
 // ─── Service Management ──────────────────────────────────────────────────────
 
-const SERVICE_NAME_WIN   = 'AppLockerSvc'
-const SERVICE_NAME_MAC   = 'com.lambertse.locktime'
+const SERVICE_NAME_WIN = 'AppLockerSvc'
+const SERVICE_NAME_MAC = 'com.lambertse.locktime'
 
 function getServiceExePath(): string {
   if (isDev) return ''
@@ -66,7 +57,11 @@ async function ensureServiceRunning(): Promise<void> {
   // In dev mode the developer runs the backend manually; just attempt a lazy
   // connect so the first RPC call doesn't block on reconnection.
   if (isDev) {
-    try { await rpc.connect() } catch { /* backend may not be up yet */ }
+    try {
+      await rpc.connect()
+    } catch {
+      /* backend may not be up yet */
+    }
     return
   }
 
@@ -141,7 +136,10 @@ function createTray(): void {
     {
       label: 'Show',
       click: () => {
-        if (mainWindow) { mainWindow.show(); mainWindow.focus() }
+        if (mainWindow) {
+          mainWindow.show()
+          mainWindow.focus()
+        }
       },
     },
     { label: 'Hide', click: () => mainWindow?.hide() },
@@ -222,8 +220,8 @@ function createWindow(): void {
 // ─── IPC — Window Controls ───────────────────────────────────────────────────
 
 ipcMain.on('window:minimize', () => mainWindow?.minimize())
-ipcMain.on('window:hide',     () => mainWindow?.hide())
-ipcMain.on('window:quit',     () => app.quit())
+ipcMain.on('window:hide', () => mainWindow?.hide())
+ipcMain.on('window:quit', () => app.quit())
 
 // ─── IPC — RPC Bridge ────────────────────────────────────────────────────────
 // Each handler calls the C++ backend via iBridger and returns the result to the
@@ -248,34 +246,54 @@ function rpcHandler<T>(fn: () => Promise<T>) {
 }
 
 // Status
-ipcMain.handle('api:getStatus', rpcHandler(() => rpc.getStatus()))
+ipcMain.handle(
+  'api:getStatus',
+  rpcHandler(() => rpc.getStatus()),
+)
 
 // Rules
-ipcMain.handle('api:listRules', rpcHandler(() => rpc.listRules()))
-ipcMain.handle('api:getRule',   (_e, id: string) => rpcHandler(() => rpc.getRule(id))())
+ipcMain.handle(
+  'api:listRules',
+  rpcHandler(() => rpc.listRules()),
+)
+ipcMain.handle('api:getRule', (_e, id: string) => rpcHandler(() => rpc.getRule(id))())
 ipcMain.handle('api:createRule', (_e, req: CreateRuleRequest) =>
-  rpcHandler(() => rpc.createRule(req))())
+  rpcHandler(() => rpc.createRule(req))(),
+)
 ipcMain.handle('api:updateRule', (_e, req: UpdateRuleRequest) =>
-  rpcHandler(() => rpc.updateRule(req))())
+  rpcHandler(() => rpc.updateRule(req))(),
+)
 ipcMain.handle('api:patchRule', (_e, req: PatchRuleRequest) =>
-  rpcHandler(() => rpc.patchRule(req))())
-ipcMain.handle('api:deleteRule', (_e, id: string) =>
-  rpcHandler(() => rpc.deleteRule(id))())
+  rpcHandler(() => rpc.patchRule(req))(),
+)
+ipcMain.handle('api:deleteRule', (_e, id: string) => rpcHandler(() => rpc.deleteRule(id))())
 
 // Overrides
 ipcMain.handle('api:grantOverride', (_e, req: GrantOverrideRequest) =>
-  rpcHandler(() => rpc.grantOverride(req))())
+  rpcHandler(() => rpc.grantOverride(req))(),
+)
 ipcMain.handle('api:revokeOverride', (_e, ruleId: string) =>
-  rpcHandler(() => rpc.revokeOverride(ruleId))())
+  rpcHandler(() => rpc.revokeOverride(ruleId))(),
+)
 
 // Usage
-ipcMain.handle('api:getUsageToday', rpcHandler(() => rpc.getUsageToday()))
-ipcMain.handle('api:getUsageWeek',  rpcHandler(() => rpc.getUsageWeek()))
+ipcMain.handle(
+  'api:getUsageToday',
+  rpcHandler(() => rpc.getUsageToday()),
+)
+ipcMain.handle(
+  'api:getUsageWeek',
+  rpcHandler(() => rpc.getUsageWeek()),
+)
 ipcMain.handle('api:getBlockAttempts', (_e, req: GetBlockAttemptsRequest = {}) =>
-  rpcHandler(() => rpc.getBlockAttempts(req))())
+  rpcHandler(() => rpc.getBlockAttempts(req))(),
+)
 
 // System
-ipcMain.handle('api:getProcesses', rpcHandler(() => rpc.getProcesses()))
+ipcMain.handle(
+  'api:getProcesses',
+  rpcHandler(() => rpc.getProcesses()),
+)
 
 // Browse file — handled entirely by Electron (no C++ needed)
 ipcMain.handle('api:browseFile', async () => {
@@ -288,15 +306,19 @@ ipcMain.handle('api:browseFile', async () => {
     properties: ['openFile'],
   })
   return {
-    path: result.canceled ? null : result.filePaths[0] ?? null,
+    path: result.canceled ? null : (result.filePaths[0] ?? null),
     cancelled: result.canceled,
   }
 })
 
 // Config
-ipcMain.handle('api:getConfig', rpcHandler(() => rpc.getConfig()))
+ipcMain.handle(
+  'api:getConfig',
+  rpcHandler(() => rpc.getConfig()),
+)
 ipcMain.handle('api:updateConfig', (_e, config: Record<string, string>) =>
-  rpcHandler(() => rpc.updateConfig(config))())
+  rpcHandler(() => rpc.updateConfig(config))(),
+)
 
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
 
@@ -307,10 +329,18 @@ ipcMain.handle('api:updateConfig', (_e, config: Record<string, string>) =>
 ipcMain.on('log:write', (_e, level: string, message: string) => {
   const prefixed = `[renderer] ${message}`
   switch (level) {
-    case 'error': log.error(prefixed); break
-    case 'warn':  log.warn(prefixed);  break
-    case 'debug': log.debug(prefixed); break
-    default:      log.info(prefixed);  break
+    case 'error':
+      log.error(prefixed)
+      break
+    case 'warn':
+      log.warn(prefixed)
+      break
+    case 'debug':
+      log.debug(prefixed)
+      break
+    default:
+      log.info(prefixed)
+      break
   }
 })
 

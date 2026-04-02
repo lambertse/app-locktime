@@ -15,10 +15,6 @@ extraResources:
     to: icons/
     filter:
       - "**/*"
-  - from: resources/proto/
-    to: proto/
-    filter:
-      - "**/*.proto"
 
 win:
   extraResources:

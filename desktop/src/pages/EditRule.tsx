@@ -13,7 +13,11 @@ export function EditRule() {
   const queryClient = useQueryClient()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  const { data: rule, isLoading, error } = useQuery({
+  const {
+    data: rule,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['rule', id],
     queryFn: () => getRule(id!),
     enabled: !!id,
@@ -88,7 +92,9 @@ export function EditRule() {
       <div className="flex-1 p-8 max-w-2xl">
         <RuleForm
           initialRule={rule}
-          onSubmit={async (payload) => { await updateMutation.mutateAsync(payload) }}
+          onSubmit={async (payload) => {
+            await updateMutation.mutateAsync(payload)
+          }}
           onCancel={() => navigate('/rules')}
           submitLabel="Save Changes"
           isSubmitting={updateMutation.isPending}
@@ -104,7 +110,8 @@ export function EditRule() {
               <h3 className="font-semibold text-zinc-100">Delete "{rule.name}"?</h3>
             </div>
             <p className="text-sm text-zinc-400 mb-5">
-              This will permanently delete the rule and all its schedules. This action cannot be undone.
+              This will permanently delete the rule and all its schedules. This action cannot be
+              undone.
             </p>
             <div className="flex gap-3 justify-end">
               <button
