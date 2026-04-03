@@ -21,29 +21,39 @@ endif()
 
 include(FetchContent)
 
-# ── Protobuf ──────────────────────────────────────────────────────────────────
-# Prefer a system/Homebrew installation; fall back to FetchContent for CI.
-find_package(protobuf CONFIG QUIET)
-if(NOT protobuf_FOUND)
-  message(STATUS "protobuf not found via find_package — fetching via FetchContent")
-  set(protobuf_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
-  set(protobuf_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-  set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-  set(protobuf_INSTALL        OFF CACHE BOOL "" FORCE)
-  set(protobuf_WITH_ZLIB      OFF CACHE BOOL "" FORCE)
-  # Let protobuf manage its own abseil dependency ("module" avoids package detection issues)
-  set(protobuf_ABSL_PROVIDER  "module" CACHE STRING "" FORCE)
-  set(ABSL_PROPAGATE_CXX_STD  ON CACHE BOOL "" FORCE)
+# ── Protobuf + Abseil (arm64 / Apple Silicon fix) ─────────────────────────────
+set(protobuf_BUILD_TESTS        OFF CACHE BOOL "" FORCE)
+set(protobuf_BUILD_EXAMPLES     OFF CACHE BOOL "" FORCE)
+set(protobuf_BUILD_SHARED_LIBS  OFF CACHE BOOL "" FORCE)
+set(protobuf_INSTALL            OFF CACHE BOOL "" FORCE)
+set(protobuf_WITH_ZLIB          OFF CACHE BOOL "" FORCE)
+set(protobuf_ABSL_PROVIDER      "module" CACHE STRING "" FORCE)
+set(ABSL_PROPAGATE_CXX_STD      ON  CACHE BOOL "" FORCE)
+set(ABSL_RANDOM_ENABLE_RANDEN_HWAES     OFF CACHE BOOL "" FORCE)
+set(ABSL_RANDOM_HWAES_COPTS             ""  CACHE STRING "" FORCE)
+set(ABSL_RANDOM_RANDEN_COPTS            ""  CACHE STRING "" FORCE)
 
-  FetchContent_Declare(
-    protobuf
-    GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
-    GIT_TAG        v28.3
-    GIT_SHALLOW    TRUE
-  )
-  FetchContent_MakeAvailable(protobuf)
-else()
-  message(STATUS "Using system protobuf: ${protobuf_VERSION}")
+FetchContent_Declare(
+  protobuf
+  GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
+  GIT_TAG        v28.3
+  GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(protobuf)
+# ── Apple Silicon: patch ALL randen hwaes targets ────────────────────────────
+# AppleClang 17 rejects -Xarch_x86_64 -msse4.1 even when cross-gated.
+# Must patch both the _impl and the detector target.
+if(APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
+  foreach(_target IN ITEMS
+      absl_random_internal_randen_hwaes_impl
+      absl_random_internal_randen_hwaes)
+    if(TARGET ${_target})
+      set_target_properties(${_target} PROPERTIES COMPILE_OPTIONS "")
+      message(STATUS "Patched ${_target}: cleared bad SSE flags")
+    else()
+      message(WARNING "Target ${_target} not found — skipped")
+    endif()
+  endforeach()
 endif()
 
 # ── iBridger ─────────────────────────────────────────────────────────────────
