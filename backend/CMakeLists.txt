@@ -60,7 +60,7 @@ endif()
 FetchContent_Declare(
   ibridger
   GIT_REPOSITORY https://github.com/lambertse/iBridger.git
-  GIT_TAG       v0.3.0 
+  GIT_TAG       v0.4.0 
 )
 set(IBRIDGER_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
 set(IBRIDGER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
